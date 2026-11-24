@@ -1,5 +1,7 @@
 # Frontend verification report
 
+This document records an earlier project milestone. See the [current verification and status](docs/FINAL_TEST_REPORT.md) for the latest evidence.
+
 This archive records the pre-update state. See the [current testing report](docs/TESTING_REPORT.md).
 
 `npm run build` passed on 23 November 2026. Vite warned that the main JavaScript

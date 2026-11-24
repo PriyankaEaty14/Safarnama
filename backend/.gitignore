@@ -4,3 +4,4 @@ __pycache__/
 .env
 data/*.db
 data/*.failed.json
+data/local_ingestion_report.json

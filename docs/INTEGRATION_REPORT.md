@@ -1,5 +1,7 @@
 # SAFARNAMA integration report
 
+This document records an earlier project milestone. See the [current verification and status](FINAL_TEST_REPORT.md) for the latest evidence.
+
 The source publication omits exploratory generated CSVs. The verified local
 integration archive includes the unmodified Member 1 snapshot. The
 repository retains the runtime prediction CSV, schema, manifest,

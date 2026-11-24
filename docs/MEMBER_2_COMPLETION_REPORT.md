@@ -1,5 +1,7 @@
 # Member 2 backend completion
 
+This document records an earlier project milestone. See the [current verification and status](FINAL_TEST_REPORT.md) for the latest evidence.
+
 The baseline already included FastAPI routers, SQLite schema and ingestion,
 calendar-aware journey planning, ordered-leg deduplication, geometry alignment
 and a crowding-unavailable adapter. Its original 15 backend tests passed when

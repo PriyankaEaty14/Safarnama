@@ -119,3 +119,41 @@ The frontend uses `VITE_HISTORICAL_DEMAND_PATH`, relative to
 under `/api/v1`. Check readiness and the example lookup after changing
 backend URLs, feeds, or artifacts. No original ETM data or credentials
 are required for the shipped demo export.
+
+## Data verification and backups
+
+Run `scripts/validate_data feeds/delhi_buses_static_gtfs_v1.zip --origin http://127.0.0.1:8080`
+to verify ZIP integrity, the archive checksum and historical coverage on the
+running app. The initial local import command `scripts/import_gtfs` refuses an
+existing database or generated report. Keep deployment backups off the Docker
+host. For a consistent online SQLite backup, use SQLite's `.backup` command
+and validate the destination using `PRAGMA quick_check;`. Record the
+matching GTFS archive hash, ingestion report, application revision and
+configuration, and test restoration using a separate volume.
+
+For standalone hosting, install
+`python -m pip install -c backend/constraints.txt -r backend/requirements-runtime.txt`
+from the repository root and start with `scripts/run_backend` or Uvicorn's
+`--no-access-log` flag. Protect process logs and monitor `/health` and `/ready`.
+Use a read-only mount for a custom ML crosswalk and set
+`SAFARNAMA_ML_ROUTE_MAPPING` to the mapped path. Custom export manifests use
+`coverage_scope: full_network` and declare the CSV filename, row count,
+route count and SHA-256. The service exposes the subset with unambiguous
+reviewed GTFS mappings. The original demo still requires a mapping for every
+demo route.
+
+## Delhi vehicle feed
+
+Request access and review the provider's redistribution terms before enabling
+the service. Set `SAFARNAMA_LIVE_ENABLED=true` and inject
+`SAFARNAMA_DELHI_LIVE_KEY` through a protected runtime secret. Leave the
+feature off until the account is authorized for the intended use. Verify fresh
+vehicle responses from `/api/v1/live/vehicles` without printing the key or
+query URL. The feed contains positions. It supplies no verified passenger
+occupancy for the app. [Apply for Delhi live access](https://otd.delhi.gov.in/data/realtime/)
+
+The GitHub workflow builds both containers after running baseline checks.
+Setting the repository variable `SAFARNAMA_GTFS_URL` to an authorized HTTPS
+download for the exact verified static archive enables real-feed browser tests.
+The workflow checks the fixed SHA-256 before import. Keep private download
+credentials out of repository variables.

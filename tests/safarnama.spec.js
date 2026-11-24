@@ -194,3 +194,15 @@ test('real mapped journey shows historical demand separately from unavailable cr
   await expect(historical.getByRole('status')).toHaveText('Historical demand could not be checked.');
   await expect(historical.getByText(/82\.6 estimated/)).toHaveCount(0);
 });
+
+test('mobile analytics displays verified Delhi historical coverage and hourly demand', async ({page}) => {
+  await page.setViewportSize({width: 360, height: 800});
+  await page.goto('/#/analytics');
+  await expect(page.getByText('20 of 2,574 GTFS routes are mapped.')).toBeVisible();
+  await page.getByLabel('Service date').fill('2026-11-27');
+  await page.getByLabel('GTFS route').selectOption({label: '717AUP'});
+  await expect(page.getByText('24 of 24 hourly estimates available.')).toBeVisible();
+  await page.getByText('Hourly estimates table').click();
+  await expect(page.getByRole('row', {name:'08:00 82.6', exact:true})).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+});

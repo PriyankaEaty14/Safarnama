@@ -15,12 +15,12 @@ class StopResponse(BaseModel):
 
 
 @router.get("", response_model=list[StopResponse])
-def stops(request: Request, q: str | None = None, limit: int = Query(100, ge=1, le=10000)):
+def stops(request: Request, q: str | None = Query(None, max_length=100), limit: int = Query(100, ge=1, le=10000), offset: int = Query(0, ge=0, le=100000)):
     with request.app.state.engine.connect() as db:
         if q:
-            rows = db.execute(text("SELECT id,name,lat,lng,code FROM stops WHERE name LIKE :q ORDER BY name LIMIT :limit"), {"q": f"%{q}%", "limit": limit}).mappings().all()
+            rows = db.execute(text("SELECT id,name,lat,lng,code FROM stops WHERE name LIKE :q ORDER BY name, id LIMIT :limit OFFSET :offset"), {"q": f"%{q}%", "limit": limit, "offset": offset}).mappings().all()
         else:
-            rows = db.execute(text("SELECT id,name,lat,lng,code FROM stops ORDER BY name LIMIT :limit"), {"limit": limit}).mappings().all()
+            rows = db.execute(text("SELECT id,name,lat,lng,code FROM stops ORDER BY name, id LIMIT :limit OFFSET :offset"), {"limit": limit, "offset": offset}).mappings().all()
     return [StopResponse(**row) for row in rows]
 
 

@@ -1,11 +1,12 @@
 """Historical route-hour ticket estimates, kept separate from crowding."""
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date as ServiceDate, datetime, timedelta, timezone
 import logging
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
+from sqlalchemy import func, select
 
 from app.adapters.historical_demand import METRIC
 from app.db.models import Route
@@ -43,12 +44,20 @@ class HistoricalDemandResponse(BaseModel):
 def historical_demand(
     request: Request,
     route_id: Annotated[str, Query(min_length=1, max_length=200)],
-    date: date,
+    date: ServiceDate,
     time: Annotated[str, Query(pattern=CLOCK)],
 ):
+    require_route(request, route_id)
+    return demand_for_time(request, route_id, date, time)
+
+
+def require_route(request, route_id):
     with request.app.state.session_factory() as db:
         if db.get(Route, route_id) is None:
             raise HTTPException(404, "GTFS route not found")
+
+
+def demand_for_time(request, route_id, date, time):
     at = datetime.combine(date, datetime.strptime(time, "%H:%M").time(), tzinfo=DELHI)
     base = dict(route_id=route_id, day_of_week=at.weekday(), hour=at.hour,
                 applicable_hour_start=at.replace(minute=0).isoformat())
@@ -58,7 +67,8 @@ def historical_demand(
     try:
         result = adapter.lookup(route_id, at)
     except Exception as error:
-        logger.warning("Historical lookup rejected", extra={"route_id": route_id, "error_type": type(error).__name__})
+        logger.warning("Historical lookup rejected request_id=%s type=%s",
+                       request.state.request_id, type(error).__name__)
         return HistoricalDemandResponse(status="unavailable", reason="The historical estimate failed validation.", **base)
     if result is None:
         return HistoricalDemandResponse(status="unsupported_route", reason="This route is outside the verified historical dataset.", **base)
@@ -72,3 +82,56 @@ def historical_demand(
         source=result["source"], model=result["model"], schema_version=result["schema_version"],
         training_period=result["training_period"], **base,
     )
+
+
+class CoverageRoute(BaseModel):
+    route_id: str
+    route: str
+    available_buckets: int
+    sample_buckets: Literal[168] = 168
+
+
+class CoverageResponse(BaseModel):
+    status: Literal["available", "unavailable"]
+    mapped_routes: int = 0
+    imported_routes: int
+    uncovered_routes: int
+    export_routes: int = 0
+    export_rows: int = 0
+    missing_export_buckets: int = 0
+    artifact_sha256: str | None = None
+    routes: list[CoverageRoute]
+
+
+@router.get("/coverage", response_model=CoverageResponse)
+def coverage(request: Request, limit: int = Query(100, ge=1, le=250),
+             offset: int = Query(0, ge=0, le=100000)):
+    adapter = request.app.state.historical_demand
+    if adapter is None:
+        with request.app.state.engine.connect() as db:
+            imported = db.execute(select(func.count()).select_from(Route)).scalar_one()
+        return CoverageResponse(status="unavailable", imported_routes=imported,
+                                uncovered_routes=imported, routes=[])
+    ordered = sorted(adapter.routes.items(), key=lambda item: (item[1], item[0]))
+    return CoverageResponse(
+        status="available", mapped_routes=len(ordered), imported_routes=adapter.gtfs_route_count,
+        uncovered_routes=adapter.gtfs_route_count - len(ordered), export_routes=len(adapter.bucket_counts),
+        export_rows=adapter.prediction_rows, artifact_sha256=adapter.artifact_sha256,
+        missing_export_buckets=len(adapter.bucket_counts) * 168 - adapter.prediction_rows,
+        routes=[CoverageRoute(route_id=route_id, route=code, available_buckets=adapter.bucket_counts[code])
+                for route_id, code in ordered[offset:offset + limit]],
+    )
+
+
+class HistoricalProfile(BaseModel):
+    route_id: str
+    date: ServiceDate
+    hours: list[HistoricalDemandResponse]
+
+
+@router.get("/profile", response_model=HistoricalProfile)
+def profile(request: Request, route_id: Annotated[str, Query(min_length=1, max_length=200)], date: ServiceDate):
+    require_route(request, route_id)
+    return HistoricalProfile(route_id=route_id, date=date, hours=[
+        demand_for_time(request, route_id, date, f"{hour:02d}:00") for hour in range(24)
+    ])

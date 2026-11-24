@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/../backend"
+exec "${SAFARNAMA_PYTHON:-.venv/bin/python}" -m uvicorn app.main:app --no-access-log "$@"

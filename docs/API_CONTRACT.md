@@ -187,3 +187,35 @@ unavailable. The example below abbreviates the schedule arrays.
  "peakHours":{"status":"unavailable","values":[]},"weekdayWeekend":{"status":"unavailable","values":[]},
  "crowdingDistribution":{"status":"unavailable","values":[]}}
 ```
+
+## Readiness, pagination and request metadata
+
+- `GET /health` checks process liveness. `GET /ready` checks database
+  connectivity and imported schedules and returns 503 when they are missing.
+  Existing `/api/v1/health` and `/api/v1/ready` remain available.
+- Successful and failed application responses carry a generated `X-Request-ID`.
+  Query strings over 4,096 bytes return HTTP 414. Saturated journey searches
+  return HTTP 429 and a `Retry-After` header.
+- The stops and routes lists accept an optional zero-based `offset` and
+  preserve stable ordering.
+
+## Historical coverage and profiles
+
+`GET /api/v1/demand/coverage?limit=100&offset=0` gives the exported row count,
+missing buckets, artifact SHA-256, mapped and imported route counts, and a
+page of verified directional mappings. Results distinguish a missing artifact
+from routes outside coverage. `GET /api/v1/demand/profile?route_id=2171&date=2026-11-27`
+returns one record per Delhi hour using the existing historical demand
+response type. An unsupported route has null demand values. Unknown GTFS route
+IDs return HTTP 404. Both endpoints work with the demo crosswalk and with an
+operator-supplied reviewed crosswalk.
+
+## Optional live vehicle positions
+
+`GET /api/v1/live/vehicles?limit=100` reports `disabled`, `unavailable`,
+`stale` or `available`. Optional fields include the feed observation
+timestamp, valid vehicle count and up to 500 positions from the authorized
+Delhi provider. Each record contains position, observation time and optional
+provider route ID. Provider IDs are presented as supplied, without a
+schedule crosswalk. Responses use `Cache-Control: no-store`.
+[Provider and credentials](DEPLOYMENT_GUIDE.md)

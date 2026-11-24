@@ -1,5 +1,7 @@
 # Member 3 frontend completion
 
+This document records an earlier project milestone. See the [current verification and status](FINAL_TEST_REPORT.md) for the latest evidence.
+
 The baseline supplied the React layout, branding, planner, Leaflet explorer
 and data-connected summary cards. The updated app uses that integrated frontend
 as its base.

@@ -8,13 +8,17 @@ services:
       SAFARNAMA_CORS_ORIGINS: ${SAFARNAMA_CORS_ORIGINS:-}
       SAFARNAMA_LOG_LEVEL: ${SAFARNAMA_LOG_LEVEL:-INFO}
       SAFARNAMA_ML_ARTIFACT_DIR: ${SAFARNAMA_ML_ARTIFACT_DIR-/app/ml/outputs}
+      SAFARNAMA_ML_ROUTE_MAPPING: ${SAFARNAMA_ML_ROUTE_MAPPING:-}
+      SAFARNAMA_JOURNEY_CONCURRENCY: ${SAFARNAMA_JOURNEY_CONCURRENCY:-4}
+      SAFARNAMA_LIVE_ENABLED: ${SAFARNAMA_LIVE_ENABLED:-false}
+      SAFARNAMA_DELHI_LIVE_KEY: ${SAFARNAMA_DELHI_LIVE_KEY:-}
     volumes:
       - transit:/data
       - ./feeds:/feeds:ro
     init: true
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/api/v1/ready', timeout=3).close()"]
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/ready', timeout=3).close()"]
       interval: 15s
       timeout: 5s
       retries: 4

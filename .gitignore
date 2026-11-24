@@ -5,3 +5,7 @@ dist/
 feeds/
 test-results/
 playwright-report/
+.env.*
+!.env.example
+*.pem
+*.key

@@ -1,5 +1,7 @@
 # GTFS validation report
 
+This document records an earlier project milestone. See the [current verification and status](docs/FINAL_TEST_REPORT.md) for the latest evidence.
+
 This archive records the pre-update state. See the [current testing report](docs/TESTING_REPORT.md).
 
 The imported source was `delhi_buses_static_gtfs_v1.zip` (SHA-256

@@ -246,3 +246,7 @@ main{max-width:1340px;margin:auto;padding:27px 33px 42px}.hero{position:relative
   overflow-wrap: anywhere;
 }
 .historical-demand small, .segment-unavailable { color: var(--muted); }
+
+.demand-filters { display: flex; flex-wrap: wrap; gap: .75rem; margin-block: 1rem; align-items: end; }
+.demand-filters label { display: grid; gap: .25rem; min-width: 0; }
+.demand-filters select, .demand-filters input { font: inherit; max-width: 100%; padding: .5rem; }

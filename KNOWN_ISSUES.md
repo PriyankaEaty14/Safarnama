@@ -1,5 +1,7 @@
 # Known issues and dependencies
 
+This document records an earlier project milestone. See the [current verification and status](docs/FINAL_ISSUE_REGISTER.md) for the latest evidence.
+
 This archive records the pre-update state. See the [current testing report](docs/TESTING_REPORT.md).
 
 - No validated trip-segment occupancy, vehicle capacity, or confidence output

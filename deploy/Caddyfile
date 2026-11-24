@@ -1,14 +1,24 @@
 {$SAFARNAMA_SITE_ADDRESS::80} {
-  encode zstd gzip
-  @backend path /api/v1/* /docs /redoc /openapi.json /docs/oauth2-redirect
-  handle @backend {
-    reverse_proxy backend:8000
-  }
-  handle {
-    root * /srv
-    @assets path /assets/*
-    header @assets Cache-Control "public, max-age=31536000, immutable"
-    try_files {path} /index.html
-    file_server
-  }
+	encode zstd gzip
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+	}
+	@backend path /health /ready /api/v1/* /docs /redoc /openapi.json /docs/oauth2-redirect
+	handle @backend {
+		reverse_proxy backend:8000 {
+			transport http {
+				dial_timeout 3s
+				response_header_timeout 20s
+			}
+		}
+	}
+	handle {
+		root * /srv
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		try_files {path} /index.html
+		file_server
+	}
 }

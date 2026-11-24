@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+python_cmd="${SAFARNAMA_PYTHON:-$PWD/backend/.venv/bin/python}"
+cd ml
+"$python_cmd" -m pytest -q
+"$python_cmd" src/test_real_predictions.py

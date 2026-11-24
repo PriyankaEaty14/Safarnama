@@ -1,5 +1,7 @@
 # Safarnama verification, 24 November 2026
 
+This document records an earlier project milestone. See the [current verification and status](FINAL_TEST_REPORT.md) for the latest evidence.
+
 | Check | Result |
 |---|---|
 | Original backend baseline | 15 passed |

@@ -11,3 +11,9 @@ backend/.venv
 backend/data
 **/__pycache__
 **/.pytest_cache
+
+**/.env
+**/.env.*
+**/.venv
+**/*.pem
+**/*.key

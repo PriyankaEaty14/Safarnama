@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+"${SAFARNAMA_PYTHON:-python3.12}" -m venv backend/.venv
+backend/.venv/bin/python -m pip install -c backend/constraints.txt -r backend/requirements.txt
+npm ci

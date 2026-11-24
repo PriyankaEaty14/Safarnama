@@ -21,7 +21,7 @@ QUERY = {"route_id": "2171", "date": "2026-11-27", "time": "08:35"}
 
 @pytest.fixture
 def demand_client(tmp_path):
-    def make_client(directory=ARTIFACTS, ambiguous=False):
+    def make_client(directory=ARTIFACTS, ambiguous=False, mapping=None):
         database = tmp_path / "demand.db"
         setup = create_app(Settings(f"sqlite:///{database}", (), "WARNING"))
         with TestClient(setup):
@@ -36,7 +36,7 @@ def demand_client(tmp_path):
                 db.execute(text("INSERT INTO routes (id,short_name,agency_id,route_type)"
                                 " VALUES ('other',:name,'DTC',3)"),
                            {"name": "717AUP" if ambiguous else "UNMAPPED"})
-        return TestClient(create_app(Settings(f"sqlite:///{database}", (), "WARNING", directory)))
+        return TestClient(create_app(Settings(f"sqlite:///{database}", (), "WARNING", directory, mapping)))
     return make_client
 
 
@@ -152,3 +152,38 @@ def test_overnight_journey_resolves_original_service_day(tmp_path):
         }).json()
         assert result["legs"][0]["serviceDate"] == "2026-11-23"
         assert result["legs"][0]["minuteOfDay"] == 60
+
+
+def test_coverage_pagination_and_profile_use_artifact(demand_client):
+    with demand_client() as client:
+        coverage = client.get("/api/v1/demand/coverage", params={"limit": 1}).json()
+        second = client.get("/api/v1/demand/coverage", params={"limit": 1, "offset": 1}).json()
+        assert (coverage["mapped_routes"], coverage["uncovered_routes"]) == (20, 1)
+        assert (coverage["export_rows"], coverage["missing_export_buckets"]) == (3360, 0)
+        assert coverage["routes"][0] != second["routes"][0]
+        params = {key: QUERY[key] for key in ("route_id", "date")}
+        hours = client.get("/api/v1/demand/profile", params=params).json()["hours"]
+        assert [item["hour"] for item in hours] == list(range(24))
+        assert hours[8] == client.get(URL, params=QUERY).json()
+
+
+def test_named_export_and_reviewed_partial_crosswalk(tmp_path, demand_client):
+    directory = tmp_path / "export"
+    copytree(ARTIFACTS, directory)
+    manifest_path = directory / "safarnama_prediction_manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    (directory / manifest["dataset"]).rename(directory / "network_routes.csv")
+    manifest["dataset"] = "network_routes.csv"
+    manifest["coverage_scope"] = "full_network"
+    manifest_path.write_text(json.dumps(manifest))
+
+    mapping = tmp_path / "crosswalk.json"
+    crosswalk = json.loads(MAPPING.read_text())
+    crosswalk["routes"] = [row for row in crosswalk["routes"] if row["gtfs_route_id"] == "2171"]
+    mapping.write_text(json.dumps(crosswalk))
+    with demand_client(directory, mapping=mapping) as client:
+        coverage = client.get("/api/v1/demand/coverage").json()
+        assert coverage["mapped_routes"] == 1
+        assert coverage["export_routes"] == 20
+        assert client.get(URL, params=QUERY).json()["estimated_ticketed_passengers"] == 82.6
+        assert client.get(URL, params={**QUERY, "route_id": "1931"}).json()["status"] == "unsupported_route"

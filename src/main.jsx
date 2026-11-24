@@ -1,6 +1,6 @@
 import React, {useEffect,useState,lazy,Suspense} from 'react';
 import {createRoot} from 'react-dom/client';
-import {HashRouter,NavLink,Route,Routes,useNavigate} from 'react-router-dom';
+import {HashRouter,NavLink,Route,Routes,useNavigate,useLocation} from 'react-router-dom';
 import {BusFront,Route as RouteIcon,Map as MapIcon,ChartNoAxesCombined,ArrowDownUp,Search,Clock3,UsersRound,ChevronDown,MapPin,CalendarDays,Navigation,SlidersHorizontal,Info,Menu, X, Layers3, CircleHelp, ArrowRight} from 'lucide-react';
 import './styles.css';
 import {api} from './api';
@@ -338,7 +338,18 @@ function Analytics(){
   </>;
 }
 
+class RouteErrorBoundary extends React.Component {
+  state = {failed: false};
+  static getDerivedStateFromError() { return {failed: true}; }
+  render() {
+    return this.state.failed
+      ? <Message error>This page could not be displayed. <button className="text-btn" onClick={() => window.location.reload()}>Reload page</button></Message>
+      : this.props.children;
+  }
+}
+
 function App(){
+  const location = useLocation();
   const [stops,setStops]=useState([]);
   const [stopState,setStopState]=useState('loading');
   const [stopAttempt,setStopAttempt]=useState(0);
@@ -357,7 +368,7 @@ function App(){
   const navigate=useNavigate();
   useEffect(()=>{const c=new AbortController();api.stops(c.signal).then(data=>{if(!c.signal.aborted){if(!Array.isArray(data))throw new Error('Unexpected response');setStops(data);setStopState('');}}).catch(()=>{if(!c.signal.aborted)setStopState('error');});return()=>c.abort();},[stopAttempt]);
   return <div className="shell"><Sidebar open={open} close={()=>setOpen(false)}/>{open&&<button className="overlay" aria-label="Close navigation" onClick={()=>setOpen(false)}/>}<div className="workspace"><header className="topbar"><button className="menu" aria-label="Open navigation" onClick={()=>setOpen(true)}><Menu size={24}/></button><div><BusFront size={17}/> Delhi public transport</div></header>
-  <main><Routes><Route path="/" element={<Planner {...{stops,stopState,reloadStops,query,setQuery,results,setResults,submitted,setSubmitted,windows,setWindows,active,setActive,now}} onMap={(j,stretch=null,date)=>{setJourney(j);setServiceDate(date);setSelectedStretch(stretch);navigate('/map');}}/>}/><Route path="/map" element={<Suspense fallback={<Message>Loading route explorer…</Message>}><Explorer {...{stops,journey,query,selectedStretch,serviceDate,now,Header,Message,Badge,StopInput,StopCalls,StopItinerary}}/></Suspense>}/><Route path="/analytics" element={<Analytics/>}/></Routes></main></div></div>;
+  <main><RouteErrorBoundary key={location.pathname}><Routes><Route path="/" element={<Planner {...{stops,stopState,reloadStops,query,setQuery,results,setResults,submitted,setSubmitted,windows,setWindows,active,setActive,now}} onMap={(j,stretch=null,date)=>{setJourney(j);setServiceDate(date);setSelectedStretch(stretch);navigate('/map');}}/>}/><Route path="/map" element={<Suspense fallback={<Message>Loading route explorer…</Message>}><Explorer {...{stops,journey,query,selectedStretch,serviceDate,now,Header,Message,Badge,StopInput,StopCalls,StopItinerary}}/></Suspense>}/><Route path="/analytics" element={<Analytics/>}/></Routes></RouteErrorBoundary></main></div></div>;
 }
 const introDuration = 1800;
 const reducedMotion = '(prefers-reduced-motion: reduce)';

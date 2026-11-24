@@ -7,6 +7,10 @@ from sqlalchemy.exc import SQLAlchemyError
 router = APIRouter(tags=["health"])
 
 
+def liveness() -> dict[str, str]:
+    return {"status": "ok"}
+
+
 class HealthResponse(BaseModel):
     status: str
     database: str
@@ -31,7 +35,11 @@ def health(request: Request, response: Response) -> HealthResponse:
 def readiness(request: Request, response: Response) -> ReadinessResponse:
     try:
         with request.app.state.engine.connect() as connection:
-            ready = connection.execute(text("SELECT EXISTS (SELECT 1 FROM stop_times)")).scalar_one()
+            ready = connection.execute(text("""SELECT EXISTS (SELECT 1 FROM stop_times)
+                                    AND EXISTS (SELECT 1 FROM trips)
+                                    AND EXISTS (SELECT 1 FROM stops)
+                                    AND (EXISTS (SELECT 1 FROM calendars)
+                                         OR EXISTS (SELECT 1 FROM calendar_dates WHERE exception_type=1))""")).scalar_one()
     except SQLAlchemyError:
         response.status_code = 503
         return ReadinessResponse(status="degraded", database="unavailable", schedules="unknown")

@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from 'recharts';
 import {api} from './api';
+import DemandAnalytics from './demand-analytics';
 
 const metrics = [
   ['Agencies', 'agencies'], ['Stops', 'stops'], ['Routes', 'routes'],
@@ -71,6 +72,6 @@ export default function NetworkAnalytics() {
         </tr>)}</tbody>
       </table></div> : <div className="message" role="status">No scheduled corridors are available.</div>}
     </section>
-    <p className="analytics-note">Passenger demand, bus capacity and crowding predictions are unavailable.</p>
+    <DemandAnalytics/>
   </section>;
 }

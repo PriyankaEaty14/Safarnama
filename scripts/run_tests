@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+python_cmd="${SAFARNAMA_PYTHON:-python}"
+if [[ -z "${SAFARNAMA_PYTHON:-}" && -x backend/.venv/bin/python ]]; then
+  python_cmd="$PWD/backend/.venv/bin/python"
+fi
+(cd backend && "$python_cmd" -m pytest -q)
+SAFARNAMA_PYTHON="$python_cmd" scripts/validate_ml
+npm run build
+docker compose config -q
+if [[ -n "${SAFARNAMA_TEST_ORIGIN:-}" ]]; then
+  curl --fail --silent --show-error "${SAFARNAMA_TEST_ORIGIN%/}/health"
+  curl --fail --silent --show-error "${SAFARNAMA_TEST_ORIGIN%/}/ready"
+  npm test
+fi

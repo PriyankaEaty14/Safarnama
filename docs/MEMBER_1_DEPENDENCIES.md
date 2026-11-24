@@ -1,5 +1,7 @@
 # Work dependent on Member 1
 
+This document records an earlier project milestone. See the [current verification and status](FINAL_TEST_REPORT.md) for the latest evidence.
+
 | Blocked work | Member 1 handoff | Member 2 follow-up | Member 3 follow-up | Verification |
 |---|---|---|---|---|
 | Trip and segment prediction lookup | Versioned inference output, GTFS join keys, time semantics and sample records | Implement and validate the provider adapter, including ambiguous and missing keys | Render supported segment values and partial results | GTFS ID and sequence parity, midnight cases and real prediction fixtures |
