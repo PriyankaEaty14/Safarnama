@@ -24,3 +24,24 @@ requests completed in 3.24–3.57 seconds and eight received a 429 response in
 cold analytics and the planner’s full initial stop payload remain operational
 limits. The paged stops API is available to clients that can fetch names in
 smaller batches. [Deployment and scaling scope](DEPLOYMENT_GUIDE.md)
+
+## Journey deduplication update
+
+Benchmarks alternated the published baseline and revised service on the
+same read-only Delhi volume. Each median uses five in-container loopback
+observations after a warm-up. Other cloud verification processes shared
+the environment. No capacity claim follows from these measurements.
+
+| Workload | Baseline | Revised | Returned journeys |
+|---|---:|---:|---:|
+| Anand Vihar ISBT to West Enclave, historical balanced | 1,015 ms | 729 ms | 30 |
+| Badarpur Border to Kapashera, historical default | 841 ms | 935 ms | 12 |
+
+The first route pair improved in this run, while the second was slower.
+The revised responses grew about 4.4% from the itinerary IDs and precise
+leg times. Cached stop paths and browser stop-name indexing reduce
+repeated work. SQLite's actual query plan used the existing
+`ix_stop_times_stop_departure` index for a stop and time-range lookup.
+Time-critical API behavior and large-catalog limits still need a staging
+load test. The main JS bundle grew from 356.86 kB to approximately
+358 kB before compression. [Journey validation](JOURNEY_PLANNER_VALIDATION.md)

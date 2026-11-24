@@ -21,3 +21,13 @@ internal details. Restrict access to logs and secret stores. The concurrency
 control is process-local and public deployment still requires host-level
 monitoring and a traffic policy suited to the expected load.
 [Deployment controls](DEPLOYMENT_GUIDE.md)
+
+## Journey update verification
+
+The revised journey query keeps stop IDs bound and adds a fixed set of
+accepted search modes. Date-related errors describe the Delhi search policy.
+Historical demand failures return public reason codes without exposing local
+artifact paths. Release verification reran the npm production and pinned
+Python advisory checks. Both checks found zero known vulnerabilities at
+verification time. The Windows workspace and public hosting configuration
+require separate verification.

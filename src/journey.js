@@ -74,3 +74,25 @@ export function callsAtStop(journey, stopId, serviceDate, now) {
     return [{route:leg.route, legIndex, index, state, arrival, departure}];
   }));
 }
+
+const delhiClock = new Intl.DateTimeFormat('sv-SE', {
+  timeZone: 'Asia/Kolkata', dateStyle: 'short', timeStyle: 'short', hourCycle: 'h23',
+});
+
+export function delhiDateTime(instant = Date.now()) {
+  const [date, time] = delhiClock.format(instant).split(' ');
+  return {date, time};
+}
+
+export function distinctJourneys(journeys) {
+  if (!Array.isArray(journeys)) throw new Error('Unexpected journey response');
+  const seen = new Set();
+  return journeys.filter(journey => {
+    const key = journey.itineraryId ?? JSON.stringify(journey.legs.map(leg => [
+      leg.routeId, leg.departureSeconds ?? leg.start, leg.arrivalSeconds ?? leg.end, leg.stopIds,
+    ]));
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}

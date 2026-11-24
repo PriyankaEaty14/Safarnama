@@ -157,3 +157,23 @@ Setting the repository variable `SAFARNAMA_GTFS_URL` to an authorized HTTPS
 download for the exact verified static archive enables real-feed browser tests.
 The workflow checks the fixed SHA-256 before import. Keep private download
 credentials out of repository variables.
+
+## Update an existing Windows Docker Desktop installation
+
+Run `docker compose ls` and record the current project name. Keep the
+existing `.env`, feed archive and database volume. To apply updated source
+from a Git clone, pull the new source, then run from the repository root in
+PowerShell:
+
+```powershell
+docker compose up -d --build --wait
+Invoke-RestMethod http://127.0.0.1:8080/health
+Invoke-RestMethod http://127.0.0.1:8080/ready
+```
+
+If replacing an extracted GitHub ZIP in a new directory, copy the local
+configuration and feed, then pass the same Compose project name with
+`docker compose -p YOUR_EXISTING_PROJECT up -d --build --wait`. This keeps
+the existing database volume attached. Normal rebuilds and restarts reuse
+the imported data. Run the import only for first setup or an intentional
+feed refresh.

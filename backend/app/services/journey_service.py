@@ -5,6 +5,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date
 from functools import cache
+from hashlib import sha256
 from heapq import nsmallest
 import json
 
@@ -102,7 +103,7 @@ def search_journeys(db, origin: str, destination: str, day: date, requested: int
                 if service in service_ids:
                     options.append(Boarding(trip, seq, departure + offset, offset, route_id,
                                             name or route_id, direction, end_seq, arrival))
-        return sorted(options, key=lambda item: item.departure)
+        return sorted(options, key=lambda item: (item.departure, item.trip, item.sequence, item.alight_sequence or 0))
 
     @cache
     def second_boardings(stop_id):
@@ -110,7 +111,7 @@ def search_journeys(db, origin: str, destination: str, day: date, requested: int
         return [item.departure for item in options], options
 
     transfers = defaultdict(dict)
-    for start, end, kind, minimum in db.execute(text("SELECT * FROM transfers")):
+    for start, end, kind, minimum in db.execute(text("SELECT from_stop_id, to_stop_id, transfer_type, min_transfer_time FROM transfers ORDER BY from_stop_id, to_stop_id")):
         transfers[start][end] = (kind, minimum)
 
     def candidates():
@@ -131,9 +132,16 @@ def search_journeys(db, origin: str, destination: str, day: date, requested: int
                 for transfer_stop, (kind, minimum) in connections.items():
                     if kind == 3:
                         continue
-                    wait = minimum if kind == 2 else MIN_TRANSFER
+                    # Only an explicit minimum supports a connection across stops.
+                    if transfer_stop != stop.id and (kind != 2 or not minimum):
+                        continue
+                    wait = MIN_TRANSFER
+                    if kind == 2 and minimum is not None:
+                        wait = minimum
+                    elif kind == 1:
+                        wait = 0
                     earliest = arrival + wait
-                    latest = min(arrival + max(MAX_TRANSFER, wait), deadline)
+                    latest = min(arrival + MAX_TRANSFER, deadline)
                     if earliest > latest:
                         continue
                     departures, options = second_boardings(transfer_stop)
@@ -144,12 +152,23 @@ def search_journeys(db, origin: str, destination: str, day: date, requested: int
                             yield (left, LegChoice(second, second.alight_sequence,
                                                   second.alight_arrival + second.offset))
 
-    def rank(choices):
-        departure = choices[0].board.departure // 60
-        arrival = choices[-1].arrival // 60
+    @cache
+    def ordered_path(trip_id):
+        stops = trip_stops(trip_id)
+        return {stop.seq: index for index, stop in enumerate(stops)}, tuple(stop.id for stop in stops)
+
+    @cache
+    def stop_path(trip_id, start, end):
+        positions, stop_ids = ordered_path(trip_id)
+        return stop_ids[positions[start]:positions[end] + 1]
+
+    def rank(candidate):
+        identity, choices = candidate
+        departure = choices[0].board.departure
+        arrival = choices[-1].arrival
         if preference == "balanced":
-            return arrival + 10 * (len(choices) - 1), arrival, departure
-        return arrival, len(choices) - 1, departure
+            return arrival + 600 * (len(choices) - 1), arrival, departure, identity
+        return arrival, len(choices) - 1, departure, identity
 
     def build_leg(choice):
         board = choice.board
@@ -167,32 +186,39 @@ def search_journeys(db, origin: str, destination: str, day: date, requested: int
             "stopTimes": [{"arrival": local_minutes(stop.arrival),
                            "departure": local_minutes(stop.departure)} for stop in stops],
             "start": board.departure // 60, "end": choice.arrival // 60,
+            "departureSeconds": board.departure, "arrivalSeconds": choice.arrival,
             "segments": [{"from": a, "to": b, "level": None} for a, b in zip(stop_ids, stop_ids[1:])],
         }
 
     def distinct_choices():
-        # A trip and service day identify a scheduled run. Board and alight
-        # sequences identify the occurrences even when a route revisits a stop.
         seen = set()
         for choices in candidates():
-            key = tuple((leg.board.trip, leg.board.offset, leg.board.sequence, leg.alight_sequence)
-                        for leg in choices)
-            if key not in seen:
-                seen.add(key)
-                yield choices
+            identity = tuple(
+                (leg.board.route_id, leg.board.departure, leg.arrival,
+                 stop_path(leg.board.trip, leg.board.sequence, leg.alight_sequence))
+                for leg in choices
+            )
+            if identity not in seen:
+                seen.add(identity)
+                yield identity, choices
 
     journeys = []
-    for choices in nsmallest(limit, distinct_choices(), key=rank):
+    for identity, choices in nsmallest(limit, distinct_choices(), key=rank):
         legs = [build_leg(choice) for choice in choices]
         departure, arrival = legs[0]["start"], legs[-1]["end"]
         journey_id = json.dumps([
             [leg["tripId"], leg["boardSequence"], leg["stopIds"][0],
              leg["alightSequence"], leg["stopIds"][-1], leg["start"]] for leg in legs
         ], separators=(",", ":"))
+        itinerary_id = sha256(json.dumps(identity, separators=(",", ":")).encode()).hexdigest()
         journeys.append({
-            "id": journey_id, "departure": departure, "arrival": arrival,
+            "id": journey_id, "itineraryId": itinerary_id, "departure": departure, "arrival": arrival,
             "duration": arrival - departure, "transfers": len(legs) - 1,
             "transferDuration": legs[1]["start"] - legs[0]["end"] if len(legs) > 1 else 0,
+            "transferMinimumSeconds": (
+                transfers[legs[0]["stopIds"][-1]][legs[1]["stopIds"][0]][1]
+                if len(legs) > 1 and legs[0]["stopIds"][-1] != legs[1]["stopIds"][0] else None
+            ),
             "legs": legs, "coverage": 0, "busiest": None, "confidence": None,
             "crowdingStatus": "unavailable",
             "rankingStatus": "schedule_based" if preference == "balanced" else "schedule_only",

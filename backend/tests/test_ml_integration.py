@@ -50,6 +50,7 @@ def test_actual_export_matches_gtfs_and_historical_response(demand_client):
         result = response.json()
         assert result["status"] == "historical_estimate"
         assert result["route"] == "717AUP"
+        assert result["direction"] == "UP"
         assert result["estimated_ticketed_passengers"] == float(expected["predicted_passengers"])
         assert result["historical_daily_std"] == float(expected["daily_std"])
         assert result["historical_calendar_days"] == int(expected["observed_days"])
@@ -82,6 +83,9 @@ def test_invalid_or_missing_artifacts_fail_closed(tmp_path, demand_client, reaso
     with demand_client(directory, ambiguous=reason == "ambiguous") as client:
         result = client.get(URL, params=QUERY).json()
         assert result["status"] == "unavailable"
+        assert result["reason_code"] == {
+            "absent": "artifact_missing", "checksum": "artifact_invalid", "ambiguous": "invalid_route_mapping"
+        }[reason]
         assert result["estimated_ticketed_passengers"] is None
         assert client.get("/api/v1/health").status_code == 200
 

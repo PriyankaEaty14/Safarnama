@@ -1,17 +1,17 @@
 import React, {useEffect,useState,lazy,Suspense} from 'react';
 import {createRoot} from 'react-dom/client';
 import {HashRouter,NavLink,Route,Routes,useNavigate,useLocation} from 'react-router-dom';
-import {BusFront,Route as RouteIcon,Map as MapIcon,ChartNoAxesCombined,ArrowDownUp,Search,Clock3,UsersRound,ChevronDown,MapPin,CalendarDays,Navigation,SlidersHorizontal,Info,Menu, X, Layers3, CircleHelp, ArrowRight} from 'lucide-react';
+import {BusFront,Route as RouteIcon,Map as MapIcon,ChartNoAxesCombined,ArrowDownUp,Search,Clock3,UsersRound,ChevronDown,MapPin,CalendarDays,Navigation,SlidersHorizontal,Menu, X, Layers3, CircleHelp, ArrowRight} from 'lucide-react';
 import './styles.css';
 import {api} from './api';
 import {HistoricalDemand} from './historical-demand';
 import {stopImage} from './stop-images';
-import {compareJourneys,journeySegments,laterQuery,journeyFare,scheduledStops,transferBetween,callsAtStop} from './journey';
+import {compareJourneys,journeySegments,laterQuery,journeyFare,scheduledStops,transferBetween,callsAtStop,delhiDateTime,distinctJourneys} from './journey';
 
 const labels={seats:'Seats available',standing:'Standing room',crowded:'Crowded'};
 const preferences=[['fastest','Fastest',Clock3],['balanced','Balanced',SlidersHorizontal]];
 const nav=[['/','Journey planner',RouteIcon],['/map','Route explorer',MapIcon],['/analytics','Network analytics',ChartNoAxesCombined]];
-const initial={origin:'',destination:'',date:'',time:'08:00',preference:'fastest'};
+const initial={origin:'',destination:'',date:'',time:'',preference:'fastest'};
 const time=value=>Number.isFinite(value)?String(((Math.floor(value/60)%24)+24)%24).padStart(2,'0')+':'+String(((value%60)+60)%60).padStart(2,'0')+(Math.floor(value/1440)!==0?' ('+(value>=0?'+':'')+Math.floor(value/1440)+'d)':''):'—';
 const NetworkAnalytics = lazy(() => import('./analytics'));
 const Explorer = lazy(() => import('./explorer'));
@@ -105,7 +105,6 @@ function Comparison({journeys}){
     </article><article className="panel compare-card">
       <h3><UsersRound size={18}/>Crowding comparison unavailable</h3>
       <p>No validated trip segment crowding estimates are available, so journey comfort cannot be compared.</p>
-      <Badge level={null}/>
     </article></div>
   </section>;
 }
@@ -123,8 +122,7 @@ function DepartureOptions({baseline,query,active,setActive,windows,setWindows}){
       const shifted=laterQuery(query,offset);
       try{
         const items=await api.journeys(shifted,controller.signal);
-        if(!Array.isArray(items))throw new Error('Unexpected journeys');
-        return [offset,{items,query:shifted}];
+        return [offset,{items:distinctJourneys(items),query:shifted}];
       }catch{return [offset,{error:true,query:shifted}];}
     }));
     if(!controller.signal.aborted){
@@ -147,15 +145,16 @@ function DepartureOptions({baseline,query,active,setActive,windows,setWindows}){
       const delta=earliest&&reference?earliest.arrival+1440*Number(dayChange)-reference.arrival:null;
       return <button className="departure-option" type="button" disabled={window.error} aria-pressed={active===offset} key={offset} onClick={()=>setActive(offset)}>
         <strong>{window.query.time} IST {dayChange&&'(next day)'}</strong><small>{offset?`+${offset} minutes`:'Original search'}</small>
-        {window.error?<span>Couldn’t load this time</span>:earliest?<><Badge level={earliest.busiest?.level}/><span>Arrives {time(earliest.arrival)}</span>{offset>0&&delta!==null&&<ArrivalDelta minutes={delta}/>}</>:<span>No journeys found</span>}
+        {window.error?<span>Couldn’t load this time</span>:earliest?<><span>Arrives {time(earliest.arrival)}</span>{offset>0&&delta!==null&&<ArrivalDelta minutes={delta}/>}</>:<span>No journeys found</span>}
       </button>;
     })}</div>}
   </section>;
 }
 
 function CrowdingStrip({segments,stopName,onSelect}){
-  if(!segments.length)return null;
-  return <div className="crowding-strip-wrap"><span>Crowding status by stretch</span><div className="crowding-strip" role="group" aria-label="Select a stretch to show it on the map">{segments.map(segment=>{
+  const available = segments.filter(segment => labels[segment.level]);
+  if(!available.length)return null;
+  return <div className="crowding-strip-wrap"><span>Crowding status by stretch</span><div className="crowding-strip" role="group" aria-label="Select a stretch to show it on the map">{available.map(segment=>{
     const title=`Bus ${segment.route}, ${stopName(segment.from)} to ${stopName(segment.to)} · ${labels[segment.level]||'Prediction unavailable'}`;
     return <button key={segment.legIndex+'-'+segment.index} className={labels[segment.level]?segment.level:'unknown'} type="button" aria-label={title+' · View on map'} title={title} onClick={()=>onSelect(segment)}/>;
   })}</div></div>;
@@ -165,7 +164,7 @@ function PredictionEvidence({prediction,loading,error}){
   if(loading)return <p className="prediction-evidence" role="status">Checking crowding availability…</p>;
   if(error)return <p className="prediction-evidence" role="status">Crowding availability could not be checked.</p>;
   const available=['available','historical_estimate','partially_available'].includes(prediction?.status);
-  if(!available)return <p className="prediction-evidence">{prediction?.reason||'Crowding predictions are unavailable.'}</p>;
+  if(!available)return <p className="prediction-evidence">Crowding information is unavailable because validated segment-level passenger-load data is unavailable.</p>;
   return <div className="prediction-evidence">
     <strong>{prediction.status==='partially_available'?'Some segments have an estimate':'Crowding estimate available'}</strong>
     <div>{prediction.source&&<span>{prediction.source}</span>}
@@ -207,24 +206,24 @@ function StopCalls({journey,stopId,stopName,serviceDate,now}){
   </div>;
 }
 
-function TransferNote({previous,next,stopName}){
+function TransferNote({previous,next,stopName,minimumSeconds}){
   const transfer=transferBetween(previous,next);
   const sameStop=transfer.from===transfer.to;
   return <div className="transfer-note">
     <strong>{sameStop?`Change buses at ${stopName(transfer.from)}`:`Change stops from ${stopName(transfer.from)} to ${stopName(transfer.to)}`}</strong>
     <span>Get off bus {previous.route} at {time(transfer.arrival)} · Board bus {next.route} at {time(transfer.departure)}</span>
     <span>{transfer.minutes===null?'Scheduled transfer time unavailable':`${transfer.minutes} min ${sameStop?'scheduled wait':'between buses, including time to reach the next stop'}`}</span>
+    {!sameStop&&Number.isFinite(minimumSeconds)&&<span>GTFS minimum connection time · {Math.ceil(minimumSeconds / 60)} min</span>}
   </div>;
 }
 
 function StopItinerary({journey,segments,stopName}){
   return <section className="stop-itinerary" aria-label="Stops, transfers and fares">
-    <div className="itinerary-heading"><div><h3>Stop-by-stop itinerary</h3><p>Scheduled times in IST · Crowd estimates are unavailable for these stretches.</p></div><FareLabel fare={journeyFare(journey)} total/></div>
+    <div className="itinerary-heading"><div><h3>Stop-by-stop itinerary</h3><p>Scheduled times in IST</p></div><FareLabel fare={journeyFare(journey)} total/></div>
     {journey.legs.map((leg,i)=><React.Fragment key={i}>
-      {i>0&&<TransferNote previous={journey.legs[i-1]} next={leg} stopName={stopName}/>}
+      {i>0&&<TransferNote previous={journey.legs[i-1]} next={leg} stopName={stopName} minimumSeconds={journey.transferMinimumSeconds}/>}
       <div className="itinerary-leg">
         <div className="itinerary-leg-heading"><strong><BusFront size={17}/> Bus {leg.route}</strong><FareLabel fare={leg.fareInr>=0&&Number.isFinite(leg.fareInr)?leg.fareInr:null}/></div>
-        {segments.some(segment=>segment.legIndex===i&&!segment.level)&&<p className="segment-unavailable">Crowding information unavailable for this segment.</p>}
         <ol>{scheduledStops(leg).map(({id,first,last,arrival,departure},index)=>{
           const segment=segments.find(item=>item.legIndex===i&&item.index===index);
           const hasArrival=Number.isFinite(arrival);
@@ -234,7 +233,7 @@ function StopItinerary({journey,segments,stopName}){
           return <li key={index}>
             <div className="itinerary-stop"><StopThumb id={id}/><div><strong>{stopName(id)}</strong>{(first||last)&&<span>{first?'Board here':'Get off here'}</span>}</div></div>
             <span className="itinerary-time">{times}</span>
-            {segment&&<div className="itinerary-crowd"><Badge level={segment.level}/>{evidence.length>0&&<small>{evidence.join(' · ')}</small>}</div>}
+            {labels[segment?.level]&&<div className="itinerary-crowd"><Badge level={segment.level}/>{evidence.length>0&&<small>{evidence.join(' · ')}</small>}</div>}
           </li>;
         })}</ol>
       </div>
@@ -246,6 +245,8 @@ function JourneyCard({journey,recommended,stopName,onMap,query,earliestArrival,w
   const [expanded,setExpanded]=useState(false);
   const {legs,busiest}=journey;
   const transfers=Math.max(0,legs.length-1);
+  const firstStop = stopName(legs[0].stopIds[0]);
+  const lastStop = stopName(legs.at(-1).stopIds.at(-1));
   const [details,setDetails]=useState(null);
   const [evidenceState,setEvidenceState]=useState('');
   useEffect(()=>{
@@ -258,8 +259,10 @@ function JourneyCard({journey,recommended,stopName,onMap,query,earliestArrival,w
     return ()=>controller.abort();
   },[expanded,journey.id,query.date,query.time]);
   const segments=journeySegments(journey,details?.segments||[]);
-  return <article className={'journey '+(recommended?'recommended':'')}>
-    <div className="journey-main"><div className="journey-route"><div className="bus-icon"><BusFront size={23}/></div><div><div className="route-line">{legs.map((leg,i)=><React.Fragment key={i}>{i>0&&<ArrowRight size={13}/>}<strong>{leg.route}</strong></React.Fragment>)}{recommended&&<span className="rec">{query.preference==='balanced'?'Balanced schedule':'Earliest arrival'}</span>}</div><div className="journey-sub">{time(journey.departure)} <span>–</span> {time(journey.arrival)} <span>·</span> {transfers?transfers+' transfer'+(transfers===1?'':'s'):'Direct bus'} </div></div></div><div className="journey-crowd"><Badge level={busiest?.level}/><small>{busiest?.level?stopName(busiest.from)+' – '+stopName(busiest.to):'No estimate for this journey'}</small></div><div className="duration"><FareLabel fare={journeyFare(journey)} total/>{journey.duration}<small> min</small>{journey.arrival>earliestArrival&&<small className="result-delta">+{journey.arrival-earliestArrival} min to arrive</small>}</div><button className="detail-btn" aria-label={expanded?'Hide journey details':'Show journey details'} aria-expanded={expanded} onClick={()=>setExpanded(!expanded)}><ChevronDown size={21} className={expanded?'rotate':''}/></button></div>
+  return <article data-itinerary-id={journey.itineraryId} className={'journey '+(recommended?'recommended':'')}>
+    <div className={"journey-main"+(labels[busiest?.level]?" has-crowding":"")}><div className="journey-route"><div className="bus-icon"><BusFront size={23}/></div><div><div className="route-line">{legs.map((leg,i)=><React.Fragment key={i}>{i>0&&<ArrowRight size={13}/>}<strong>{leg.route}</strong></React.Fragment>)}{recommended&&<span className="rec">{query.preference==='balanced'?'Balanced schedule':'Earliest arrival'}</span>}</div><div className="journey-sub">{time(journey.departure)} <span>–</span> {time(journey.arrival)} <span>·</span> {transfers?transfers+' transfer'+(transfers===1?'':'s'):'Direct bus'} </div></div></div>{labels[busiest?.level]&&<div className="journey-crowd"><Badge level={busiest.level}/><small>{stopName(busiest.from)} – {stopName(busiest.to)}</small></div>}<div className="duration"><FareLabel fare={journeyFare(journey)} total/>{journey.duration}<small> min</small>{journey.arrival>earliestArrival&&<small className="result-delta">+{journey.arrival-earliestArrival} min to arrive</small>}</div><button className="detail-btn" aria-label={expanded?'Hide journey details':'Show journey details'} aria-expanded={expanded} onClick={()=>setExpanded(!expanded)}><ChevronDown size={21} className={expanded?'rotate':''}/></button></div>
+    <p className="journey-endpoints"><strong>{firstStop}</strong> → <strong>{lastStop}</strong></p>
+    {!expanded&&legs.slice(1).map((leg,index)=><TransferNote key={index} previous={legs[index]} next={leg} stopName={stopName} minimumSeconds={journey.transferMinimumSeconds}/>)}
     <StopPreview journey={journey} stopName={stopName} onSelect={setWatchedStop}/>
     {watchedStop&&<StopCalls journey={journey} stopId={watchedStop} stopName={stopName} serviceDate={query.date} now={now}/>}
     <CrowdingStrip segments={segments} stopName={stopName} onSelect={segment=>onMap(journey,segment)}/>
@@ -274,10 +277,13 @@ function Planner({stops,stopState,reloadStops,query,setQuery,results,setResults,
   const [status,setStatus]=useState('');
   const [watchedStop,setWatchedStop]=useState('');
   const [formError,setFormError]=useState('');
+  const [notice,setNotice]=useState('');
+  const today = delhiDateTime(now).date;
   const [controller,setController]=useState(null);
   useEffect(()=>()=>controller?.abort(),[controller]);
-  const update=(key,value)=>{controller?.abort();setFormError('');setResults(null);setWindows(null);setActive(0);setStatus('');setQuery(q=>({...q,[key]:value}));};
-  const stopName=id=>stops.find(s=>s.id===id)?.name||id;
+  const update=(key,value)=>{controller?.abort();setFormError('');setNotice('');setResults(null);setWindows(null);setActive(0);setStatus('');setQuery(q=>({...q,[key]:value,...(key==='date'?{mode:'upcoming'}:{})}));};
+  const stopNames = React.useMemo(() => new Map(stops.map(stop => [stop.id, stop.name])), [stops]);
+  const stopName = id => stopNames.get(id) || id;
   async function search(e){
     e.preventDefault();
     if(status==='loading')return;
@@ -285,17 +291,34 @@ function Planner({stops,stopState,reloadStops,query,setQuery,results,setResults,
       setFormError('Select two different bus stops.');return;
     }
     if(!query.date||!query.time){setFormError('Enter a departure date and time.');return;}
+    const current = delhiDateTime();
+    if(query.date < current.date && query.mode !== 'historical'){
+      setFormError('That Delhi date has passed. Select Historical timetable lookup to view it.');
+      return;
+    }
+    const adjusted = query.mode !== 'historical' && query.date === current.date && query.time < current.time;
+    const searchQuery = adjusted ? {...query,time:current.time} : query;
+    if(adjusted) setQuery(searchQuery);
+    setNotice(adjusted ? 'The requested time has passed. Showing upcoming departures in Delhi.' : '');
     controller?.abort();
     const request=new AbortController();
     setController(request);
     setStatus('loading');
-    setSubmitted(query);
+    setSubmitted(searchQuery);
     setWatchedStop('');
     setResults(null);
     setActive(0);
     setWindows(null);
-    try{const items=await api.journeys(query,request.signal);if(!request.signal.aborted){if(!Array.isArray(items))throw new Error('Unexpected response');setResults(items);setStatus('');}}
-    catch{if(!request.signal.aborted)setStatus('error');}
+    try{
+      const items=await api.journeys(searchQuery,request.signal);
+      if(!request.signal.aborted){setResults(distinctJourneys(items));setStatus('');}
+    }catch(error){
+      if(!request.signal.aborted){
+        const detail=error.response?.data?.detail;
+        setStatus(typeof detail==='string'&&[404,422,429].includes(error.response?.status)
+          ? detail : 'We couldn’t load journeys. Try your search again.');
+      }
+    }
   }
   const shown=active&&windows?.[active];
   const shownQuery=shown?.query||submitted;
@@ -312,21 +335,23 @@ function Planner({stops,stopState,reloadStops,query,setQuery,results,setResults,
         <div className="date-time"><div><label htmlFor="date">Departure date</label><div className="input-wrap"><CalendarDays size={17}/><input type="date" id="date" value={query.date} onChange={e=>update('date',e.target.value)} required/></div></div><div><label htmlFor="time">Time (IST)</label><div className="input-wrap"><Clock3 size={17}/><input type="time" id="time" value={query.time} onChange={e=>update('time',e.target.value)} required/></div></div></div>
       </div>
       <div className="form-bottom"><fieldset><legend>Journey preference</legend><div className="preferences">{preferences.map(([key,name,Icon])=><button key={key} type="button" aria-pressed={query.preference===key} onClick={()=>update('preference',key)}><Icon size={17}/>{name}</button>)}</div></fieldset><button className="primary" disabled={stopState!==''||!stops.length||status==='loading'}><Search size={18}/>{status==='loading'?'Searching…':'Find journeys'}</button></div>
+      {query.date < today&&<label className="timetable-mode"><input type="checkbox" checked={query.mode==='historical'} onChange={event=>update('mode',event.target.checked?'historical':'upcoming')}/> Historical timetable lookup</label>}
+      {notice&&<Message>{notice}</Message>}
       {formError&&<Message error>{formError}</Message>}{stopState==='loading'&&<Message>Loading bus stops…</Message>}{stopState==='error'&&<Message error>Bus stops could not be loaded. <button type="button" className="text-btn" onClick={reloadStops}>Try again</button></Message>}
       {stopState===''&&!stops.length&&<Message>No bus stops are available in the imported schedule.</Message>}
     </form></section>
     <Comparison journeys={journeys}/>
     {results!==null&&<DepartureOptions baseline={results} query={{...submitted,preference:query.preference}} {...{active,setActive,windows,setWindows}}/>}
-    <section className="results"><div className="results-header"><div><h2>Journey options</h2><p>{results===null?'Search to see available buses.':journeys.length+' options · '+shownQuery.time+' IST · '+(query.preference==='balanced'?'Ranked by arrival plus a 10-minute transfer penalty':'Sorted by scheduled arrival')}</p></div><span className="typical"><Info size={15}/> Crowding unavailable</span></div>
-    {status==='loading'&&<Message>Finding scheduled journeys…</Message>}{status==='error'&&<Message error>We couldn’t load journeys. Try your search again.</Message>}{results!==null&&!journeys.length&&<Message>No journeys found. Try a different departure time or stop pair.</Message>}
+    <section className="results"><div className="results-header"><div><h2>Journey options</h2><p>{results===null?'Search to see available buses.':journeys.length+' options · '+shownQuery.time+' IST · '+(shownQuery.mode==='historical'?'Historical timetable · ':'')+(query.preference==='balanced'?'Ranked by arrival plus a 10-minute transfer penalty':'Sorted by scheduled arrival')}</p></div></div>
+    {status==='loading'&&<Message>Finding scheduled journeys…</Message>}{status&&status!=='loading'&&<Message error>{status}</Message>}{results!==null&&!journeys.length&&<Message>No journeys found. Try a different departure time or stop pair.</Message>}
     {servedStops.length>0&&<div className="panel watch-stop">
       <div><label htmlFor="watch-stop">Check buses at a stop</label><div className="map-stop-select"><select id="watch-stop" value={selectedStop} onChange={event=>setWatchedStop(event.target.value)}>
         {servedStops.map(id=><option key={id} value={id}>{stopName(id)}</option>)}
       </select><ChevronDown size={16} aria-hidden="true"/></div></div>
       <p>Timing for {shownQuery.date} is based on the schedule and the current time in IST. Stop images are illustrative.</p>
     </div>}
-    <div className="result-list">{journeys.map((journey,i)=><JourneyCard key={submitted.origin+submitted.destination+shownQuery.date+shownQuery.time+journey.id} journey={journey} earliestArrival={earliestArrival} recommended={i===0} query={shownQuery} stopName={stopName} onMap={(j,stretch)=>onMap(j,stretch,shownQuery.date)} watchedStop={selectedStop} setWatchedStop={setWatchedStop} now={now}/>)}</div>
-    <div className="legend"><span>Crowding status</span><Badge level={null}/></div></section>
+    <div className="result-list">{journeys.map((journey,i)=><JourneyCard key={submitted.origin+submitted.destination+shownQuery.date+shownQuery.time+(journey.itineraryId||journey.id)} journey={journey} earliestArrival={earliestArrival} recommended={i===0} query={shownQuery} stopName={stopName} onMap={(j,stretch)=>onMap(j,stretch,shownQuery.date)} watchedStop={selectedStop} setWatchedStop={setWatchedStop} now={now}/>)}</div>
+    </section>
   </>;
 }
 
@@ -354,7 +379,7 @@ function App(){
   const [stopState,setStopState]=useState('loading');
   const [stopAttempt,setStopAttempt]=useState(0);
   const reloadStops=()=>{setStopState('loading');setStopAttempt(value=>value+1);};
-  const [query,setQuery]=useState(()=>({...initial,origin:'',destination:'',date:new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata'}).format(new Date())}));
+  const [query,setQuery]=useState(()=>({...initial,...delhiDateTime(),mode:'upcoming'}));
   const [results,setResults]=useState(null);
   const [submitted,setSubmitted]=useState(initial);
   const [journey,setJourney]=useState(null);

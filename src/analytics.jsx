@@ -9,6 +9,7 @@ const metrics = [
 ];
 
 const format = value => Number.isFinite(value) ? value.toLocaleString('en-IN') : 'Unavailable';
+const serviceDay = new Intl.DateTimeFormat('en-IN', {dateStyle: 'medium', timeZone: 'UTC'});
 const hourLabel = hour => `${String(hour % 24).padStart(2, '0')}:00${hour >= 24 ? ` (+${Math.floor(hour / 24)}d)` : ''}`;
 
 export default function NetworkAnalytics() {
@@ -72,6 +73,14 @@ export default function NetworkAnalytics() {
         </tr>)}</tbody>
       </table></div> : <div className="message" role="status">No scheduled corridors are available.</div>}
     </section>
+    {data.scheduledServiceWeek?.length > 0 && <section className="analytics-section">
+      <h2>Scheduled trips by service day</h2>
+      <p>First seven calendar dates in the imported timetable, with service exceptions applied.</p>
+      <ul className="service-week">{data.scheduledServiceWeek.map(day => <li key={day.serviceDate}>
+        <span>{serviceDay.format(new Date(day.serviceDate))} · {day.weekend ? 'Weekend' : 'Weekday'}</span>
+        <strong>{format(day.trips)} scheduled trips</strong>
+      </li>)}</ul>
+    </section>}
     <DemandAnalytics/>
   </section>;
 }

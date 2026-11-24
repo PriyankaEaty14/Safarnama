@@ -50,6 +50,10 @@ def validate_route_mapping(rows, routes, prediction_codes, *, require_all=True):
     return mapping
 
 
+class InvalidRouteMapping(ValueError):
+    pass
+
+
 class HistoricalDemandAdapter:
     def __init__(self, directory: Path, database, mapping_path: Path = MAPPING):
         manifest = json.loads((directory / "safarnama_prediction_manifest.json").read_text())
@@ -111,11 +115,14 @@ class HistoricalDemandAdapter:
                 keys.add(key)
         if not keys or len(keys) != manifest["prediction_rows"] or len(codes) != manifest["routes"]:
             raise ValueError("Historical prediction counts do not match manifest")
-        mapping_rows = json.loads(mapping_path.read_text())["routes"]
         routes = database.execute(select(Route.id, Route.short_name, Route.long_name, Route.agency_id)).all()
-        self.routes = validate_route_mapping(
-            mapping_rows, routes, codes, require_all=scope == "selected_demo_routes",
-        )
+        try:
+            mapping_rows = json.loads(mapping_path.read_text())["routes"]
+            self.routes = validate_route_mapping(
+                mapping_rows, routes, codes, require_all=scope == "selected_demo_routes",
+            )
+        except (OSError, KeyError, TypeError, ValueError) as error:
+            raise InvalidRouteMapping("The GTFS-to-demand mapping could not be validated") from error
         self.bucket_counts = Counter(code for code, _, _ in keys)
         self.prediction_rows = len(keys)
         self.gtfs_route_count = len(routes)
@@ -154,12 +161,16 @@ class HistoricalDemandAdapter:
 
 def load_historical_demand(directory, engine, mapping_path=None):
     if directory is None:
-        return None
+        return None, "artifact_disabled"
     try:
         with engine.connect() as database:
             result = HistoricalDemandAdapter(directory, database, mapping_path or MAPPING)
     except Exception as error:
         logger.warning("Historical demand unavailable: %s", type(error).__name__)
-        return None
+        if isinstance(error, InvalidRouteMapping):
+            return None, "invalid_route_mapping"
+        if isinstance(error, FileNotFoundError):
+            return None, "artifact_missing"
+        return None, "artifact_invalid"
     logger.info("Historical demand loaded for %d mapped routes", len(result.routes))
-    return result
+    return result, None

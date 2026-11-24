@@ -23,16 +23,20 @@ class Leg(BaseModel):
     stopTimes: list[StopSchedule]
     start: int
     end: int
+    departureSeconds: int
+    arrivalSeconds: int
     segments: list[Segment]
 
 
 class Journey(BaseModel):
     id: str
+    itineraryId: str
     departure: int
     arrival: int
     duration: int
     transfers: int
     transferDuration: int
+    transferMinimumSeconds: int | None = None
     legs: list[Leg]
     coverage: float
     busiest: Segment | None

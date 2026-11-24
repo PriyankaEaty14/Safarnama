@@ -219,3 +219,24 @@ Delhi provider. Each record contains position, observation time and optional
 provider route ID. Provider IDs are presented as supplied, without a
 schedule crosswalk. Responses use `Cache-Control: no-store`.
 [Provider and credentials](DEPLOYMENT_GUIDE.md)
+
+## Journey search time and identity
+
+`mode=upcoming` is the default. For the current Delhi date, the API clamps
+the earliest boarding to the server’s current time. For a future date, it
+uses the requested time. An earlier Delhi date returns 422 unless
+`mode=historical` is supplied. That mode is a timetable lookup.
+
+`itineraryId` identifies the ordered stops, route IDs and exact times of
+the journey. The original `id` still resolves the representative GTFS
+trip IDs and stop sequences. Leg fields `departureSeconds` and
+`arrivalSeconds` are relative to the search date at Delhi midnight, alongside
+the existing minute fields. `transferMinimumSeconds` carries a valid
+cross-stop GTFS minimum when present.
+
+Historical demand includes `direction` for verified UP/DOWN routes and
+`reason_code` for insufficient, unsupported or unavailable results.
+
+Network analytics also exposes `scheduledServiceWeek`, the first seven
+published calendar dates (fewer for a shorter feed) with scheduled trip
+counts and a weekend flag. It uses GTFS service activation and exceptions.

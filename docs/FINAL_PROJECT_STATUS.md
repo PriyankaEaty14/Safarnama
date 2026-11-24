@@ -17,3 +17,16 @@ shapes, timetable statistics, and historical ticket-demand analytics for
 
 [Fresh test report](FINAL_TEST_REPORT.md) · [Open issues](FINAL_ISSUE_REGISTER.md) ·
 [Deployment guide](DEPLOYMENT_GUIDE.md)
+
+## Journey planner update
+
+The current source includes stable itinerary deduplication, Delhi-clock
+filtering, explicit historical timetable mode, validated transfer minimums,
+and more detailed journey cards. The explorer still renders verified route
+geometry when base tiles are unreachable. The analytics page adds dated
+weekday and weekend timetable counts. The original citywide timetable and
+20-route historical export were used for verification.
+
+Readiness remains **local demonstration ready**. A fresh Docker Desktop
+build and restart on the user's Windows PC and an end-to-end authorized live
+feed run remain pending. [Latest end-to-end test evidence](FINAL_TEST_REPORT.md)

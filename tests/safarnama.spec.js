@@ -3,13 +3,13 @@ import {expect, test} from '@playwright/test';
 const transferPair = ['Anand Vihar ISBT', 'Shivaji Stadium Terminal'];
 const directPair = ['Rohini Sec 22 Terminal', 'Rohini Sec 23 Pocket 1'];
 
-async function pickStop(page, label, name, keyboard = false) {
+async function pickStop(page, label, name, keyboard = false, code = null) {
   const input = page.getByLabel(label, {exact: true});
   await input.click();
   await input.fill('');
   await input.pressSequentially(name);
   await expect(input).toHaveValue(name);
-  const suggestion = page.locator('.suggestions').getByRole('button', {name: new RegExp('^'+name)});
+  const suggestion = page.locator('.suggestions').getByRole('button', {name: code || name});
   await expect(suggestion.first()).toBeVisible();
   if (keyboard) {
     await input.press('ArrowDown');
@@ -24,6 +24,8 @@ async function fillSearch(page, pair) {
   await pickStop(page, 'To', pair[1]);
   await page.getByLabel('Departure date').fill('2026-11-23');
   await page.getByLabel('Time (IST)').fill('08:35');
+  const historical = page.getByLabel('Historical timetable lookup');
+  if (await historical.isVisible()) await historical.check();
 }
 
 async function openPlanner(page) {
@@ -43,7 +45,7 @@ async function navigate(page, name) {
 async function showMap(page, card) {
   await card.getByRole('button', {name:'Show journey details'}).click();
   const details=card.locator('.journey-details');
-  await expect(details.getByText('Validated trip-segment occupancy predictions are not available.')).toBeVisible();
+  await expect(details.getByText('Crowding information is unavailable because validated segment-level passenger-load data is unavailable.')).toBeVisible();
   await details.getByRole('button', {name:'View on map'}).click();
 }
 
@@ -77,6 +79,7 @@ test('real Delhi timetable supports transfers, two mapped legs and analytics', a
   await expect(page.getByText('27,37,136', {exact:true})).toBeVisible();
   await expect(page.locator('.recharts-bar-rectangle').first()).toBeVisible();
   await expect(page.getByRole('row')).toHaveCount(11);
+  await expect(page.getByRole('heading', {name:'Scheduled trips by service day'})).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -141,7 +144,7 @@ test('analytics can retry and displays an empty timetable', async ({page}) => {
   await expect(page.getByText('80,357',{exact:true})).toBeVisible();
 });
 
-for (const viewport of [{width:390,height:844},{width:820,height:1180}]) {
+for (const viewport of [360,390,768,820,1024,1440].map(width => ({width,height:844}))) {
   test(`planner, map and analytics fit a ${viewport.width}px viewport`, async ({page}) => {
     await page.setViewportSize(viewport);
     const fits = () => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
@@ -165,6 +168,8 @@ test('real mapped journey shows historical demand separately from unavailable cr
   await page.getByRole('button',{name:/^Kapashera Crossing · EA96DE52$/}).click();
   await page.getByLabel('Departure date').fill('2026-11-27');
   await page.getByLabel('Time (IST)').fill('08:35');
+  const historicalMode = page.getByLabel('Historical timetable lookup');
+  if (await historicalMode.isVisible()) await historicalMode.check();
   await page.getByRole('button',{name:'Find journeys'}).click();
   const card = page.locator('article.journey').filter({hasText:'717AUP'}).filter({hasText:'Direct bus'}).first();
   await expect(card).toBeVisible();
@@ -186,7 +191,9 @@ test('real mapped journey shows historical demand separately from unavailable cr
   expect(estimate).toMatchObject({route:'717AUP', estimated_ticketed_passengers:82.6, is_live:false, is_actual_occupancy:false});
   await expect(historical.getByText('Friday · 08:00 IST')).toBeVisible();
   await expect(historical.getByText('82.6 estimated ticketed passengers per route-hour')).toBeVisible();
-  await expect(card.getByText('Crowding information unavailable for this segment.')).toBeVisible();
+  await expect(card.getByText(/validated segment-level passenger-load data is unavailable/)).toBeVisible();
+  await expect(card.locator('.crowding-strip,.itinerary-crowd')).toHaveCount(0);
+  await expect(historical.getByText('Bus 717AUP · Direction UP')).toBeVisible();
 
   await card.getByRole('button',{name:'Hide journey details'}).click();
   await page.route('**/api/v1/demand/historical?*', route => route.fulfill({status:503}));
@@ -205,4 +212,52 @@ test('mobile analytics displays verified Delhi historical coverage and hourly de
   await page.getByText('Hourly estimates table').click();
   await expect(page.getByRole('row', {name:'08:00 82.6', exact:true})).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+});
+
+test('today in Delhi advances a stale time and uses only upcoming departures', async ({page}) => {
+  await openPlanner(page);
+  await pickStop(page, 'From', directPair[0], true);
+  await pickStop(page, 'To', directPair[1]);
+  const today = await page.getByLabel('Departure date').inputValue();
+  const cutoff = Math.floor((Date.now() - Date.parse(today + 'T00:00:00+05:30')) / 1000);
+  await page.getByLabel('Time (IST)').fill('00:00');
+  const upcoming = page.waitForResponse(response => response.url().includes('/api/v1/journeys?'));
+  await page.getByRole('button', {name:'Find journeys'}).press('Enter');
+  if (cutoff >= 60) await expect(page.getByText('The requested time has passed. Showing upcoming departures in Delhi.')).toBeVisible();
+  const response = await upcoming;
+  expect(response.ok()).toBe(true);
+  const journeys = await response.json();
+  for (const journey of journeys) {
+    expect(journey.legs[0].departureSeconds).toBeGreaterThanOrEqual(cutoff);
+  }
+  await expect(page.locator('article.journey')).toHaveCount(journeys.length);
+  if (!journeys.length) await expect(page.getByText(/No journeys found/)).toBeVisible();
+});
+
+test('planner avoids duplicate cards and describes the real transfer and ML coverage', async ({page}) => {
+  await openPlanner(page);
+  await pickStop(page, 'From', 'Anand Vihar ISBT', false, '8AF1F950');
+  await pickStop(page, 'To', 'West Enclave / Sansad Vihar (T)', false, '0C3CB32B');
+  await page.getByLabel('Departure date').fill('2026-11-23');
+  const historical = page.getByLabel('Historical timetable lookup');
+  if (await historical.isVisible()) await historical.check();
+  await page.getByLabel('Time (IST)').fill('09:30');
+  await page.getByRole('button', {name:'Balanced', exact:true}).click();
+  let expected;
+  await page.route('**/api/v1/journeys?*', async route => {
+    const response = await route.fetch();
+    expected = await response.json();
+    await route.fulfill({response, json: [...expected, {...expected[0], id: 'duplicate-trip-id'}]});
+  }, {times:1});
+  await page.getByRole('button', {name:'Find journeys'}).click();
+  const cards = page.locator('article.journey');
+  await expect(cards.first()).toBeVisible();
+  await expect(cards).toHaveCount(expected.length);
+  const transfer = cards.filter({hasText:'85EXTUP'}).first();
+  await expect(transfer.getByText(/Change buses at/)).toBeVisible();
+  await expect(transfer.getByText(/Board bus 85EXTUP at/)).toBeVisible();
+  await expect(transfer.getByText(/scheduled wait/)).toBeVisible();
+  await transfer.getByRole('button', {name:'Show journey details'}).click();
+  await expect(transfer.getByText(/route and direction are outside the verified historical dataset/).first()).toBeVisible();
+  await expect(transfer.locator('.crowding-strip,.itinerary-crowd')).toHaveCount(0);
 });

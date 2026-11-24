@@ -11,6 +11,10 @@ export function HistoricalDemand({legs, searchDate}) {
     const controller = new AbortController();
     const requests = new Map();
     setResults(null);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(searchDate ?? '')) {
+      setResults(legs.map(() => ({status: 'unavailable', reason: 'The journey date is missing.'})));
+      return () => controller.abort();
+    }
     const estimates = legs.map(leg => {
       const {date, time} = laterQuery({date:searchDate, time:'00:00'}, leg.start);
       const key = JSON.stringify([leg.routeId, date, time.slice(0,2)]);
@@ -28,19 +32,19 @@ export function HistoricalDemand({legs, searchDate}) {
 
   return <section className="stop-itinerary historical-demand" aria-label="Historical estimated ticket demand">
     <h3>Historical estimated ticket demand</h3>
-    <p>Ticketed passengers per route-hour across scheduled trips. This figure does not measure live occupancy or seat availability.</p>
+    <p>Historical ticket demand estimates ticketed passenger activity for a route during a particular hour. It does not represent the current number of passengers onboard.</p>
     {results === null ? <p role="status">Loading historical demand…</p> : <ul>
       {results.map((result, index) => <li key={index}>
-        <strong>Bus {legs[index].route}</strong>
+        <strong>Bus {legs[index].route}{result?.direction && ` · Direction ${result.direction}`}</strong>
         {!result ? <span role="status">Historical demand could not be checked.</span>
           : result.status !== 'historical_estimate' || !Number.isFinite(result.estimated_ticketed_passengers)
-            ? <span>{result.reason || 'Historical demand unavailable.'}</span>
+            ? <span>{result.reason || 'The historical demand response was incomplete.'}</span>
             : <>
               <span>{weekdays[result.day_of_week]} · {String(result.hour).padStart(2,'0')}:00 IST</span>
               <span>{number.format(result.estimated_ticketed_passengers)} estimated ticketed passengers per route-hour</span>
               {result.historical_daily_std != null && <span>Historical standard deviation: {number.format(result.historical_daily_std)}</span>}
               {result.historical_calendar_days != null && <span>{result.historical_calendar_days} historical calendar days. These can include hours with zero recorded tickets.</span>}
-              <small>Source: {result.source} · Model: {result.model}</small>
+              <small>Source: {result.source} · Model: {result.model}{result.schema_version && ` · Schema ${result.schema_version}`}</small>
             </>}
       </li>)}
     </ul>}

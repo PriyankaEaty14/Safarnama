@@ -15,3 +15,15 @@
 | DEV-01 | P2 | ML tests | Default collection attempts to run a data-dependent diagnostic. | Classify automated tests and document explicit diagnostic prerequisites. | Implemented | 43 tests with bare pytest from ml |
 | DOC-01 | P2 | Documentation | Historical reports can be mistaken for current evidence. | Add dates/status and current data, tests and deployment references. | Updated | Review status, baseline and final evidence |
 | PERF-02 | P3 | Planning | Extra transfers require a new algorithm and performance validation. | Preserve validated direct and one-transfer paths. | Deferred | Existing journey tests |
+
+## End-to-end journey review
+
+| Issue | Severity | Affected code | Implemented and verified | Remaining limitation |
+|---|---|---|---|---|
+| JP-01 | P0 | Journey service, React planner | Route, ordered stops and exact seconds define equivalent itineraries. GTFS fixture covers different trip IDs, and Chromium covers duplicate cards. | True alternate transfer paths may share route labels. |
+| JP-02 | P0 | Journey API, app clock, search form | Delhi current-time cutoff and explicit historical mode. Clock tests cover second precision, future dates and an overnight arrival window. | Schedule departure estimates depend on the supplied GTFS feed. |
+| JP-03 | P1 | Journey service, transfer display | Explicit positive minimum for changes across distinct stops, same-stop buffers, and a 60-minute maximum connection. Tests cover missing and supported minima. | The supplied feed has no explicit walking links. |
+| ML-03 | P1 | Historical adapter, API and details | Safe reason codes, verified direction and complete demand display. Test coverage includes unsupported routes, missing files, checksum failure and invalid mapping. | Export still covers 20 of 2,574 routes. |
+| UX-03 | P1 | Planner and itinerary | Removed blank strip and per-stop crowding markers when evidence is unavailable. Chromium checks both available demand and unavailable crowding. | Validated occupancy observations remain external. |
+| UX-04 | P2 | Planner and explorer | Cards surface the real transfer stop, second boarding and wait, with the full itinerary and map available. | Walking distance is unavailable in the data. |
+| UX-05 | P2 | Route explorer | Tile failures produce an explanatory message and retain GTFS overlays. | The basemap depends on its external provider. |

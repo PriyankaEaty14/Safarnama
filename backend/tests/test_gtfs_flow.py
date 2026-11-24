@@ -1,4 +1,5 @@
 import zipfile
+from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
 
@@ -26,7 +27,8 @@ def test_import_search_calendar_overnight_and_geometry(tmp_path):
     assert report["tables"]["stops.txt"]["duplicates"] == 1
     assert report["tables"]["stops.txt"]["rejected"] == 1
     assert report["tables"]["stop_times.txt"]["imported"] == 6
-    app = create_app(Settings(f"sqlite:///{database}", (), "INFO"))
+    app = create_app(Settings(f"sqlite:///{database}", (), "INFO"),
+                     clock=lambda: datetime(2026, 11, 22, tzinfo=timezone.utc))
     with TestClient(app) as client:
         assert client.get("/api/v1/stops", params={"q": "alp"}).json()[0]["id"] == "A"
         assert client.get("/api/v1/routes/R1").json()["shortName"] == "First"

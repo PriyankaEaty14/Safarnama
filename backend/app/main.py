@@ -1,5 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from threading import BoundedSemaphore
 
 from fastapi import FastAPI, Request
@@ -29,7 +30,7 @@ from app.services.analytics_service import AnalyticsService
 logger = logging.getLogger(__name__)
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, *, clock=None) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.log_level)
     engine = make_engine(settings.database_url)
@@ -38,16 +39,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI):
         Base.metadata.create_all(engine)
         try:
-            app.state.historical_demand = load_historical_demand(settings.historical_artifact_dir, engine, settings.historical_route_mapping)
+            app.state.historical_demand, app.state.demand_issue = load_historical_demand(
+                settings.historical_artifact_dir, engine, settings.historical_route_mapping,
+            )
             yield
         finally:
             engine.dispose()
 
     app = FastAPI(title="SAFARNAMA API", version="0.1.0", lifespan=lifespan)
+    app.state.clock = clock or (lambda: datetime.now(timezone.utc))
     app.state.engine = engine
     app.state.session_factory = make_session_factory(engine)
     app.state.analytics = AnalyticsService(engine)
     app.state.historical_demand = None
+    app.state.demand_issue = None
     app.state.crowding_adapter = UnavailableAdapter()
     app.state.live_transit = (DelhiLiveTransit(settings.live_api_key)
                               if settings.live_enabled and settings.live_api_key

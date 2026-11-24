@@ -14,6 +14,12 @@ from app.db.models import Route
 router = APIRouter(prefix="/demand", tags=["historical demand"])
 logger = logging.getLogger(__name__)
 DELHI = timezone(timedelta(hours=5, minutes=30))
+ARTIFACT_REASONS = {
+    "artifact_disabled": "Historical demand is disabled for this deployment.",
+    "artifact_missing": "The historical demand export is missing from this deployment.",
+    "artifact_invalid": "The historical export could not be validated.",
+    "invalid_route_mapping": "The historical route mapping could not be verified against this timetable.",
+}
 CLOCK = r"^(?:[01][0-9]|2[0-3]):[0-5][0-9]$"
 
 
@@ -21,6 +27,7 @@ class HistoricalDemandResponse(BaseModel):
     status: Literal["historical_estimate", "unavailable", "insufficient_data", "unsupported_route"]
     route_id: str
     route: str | None = None
+    direction: Literal["UP", "DOWN"] | None = None
     day_of_week: int
     hour: int
     applicable_hour_start: str
@@ -38,6 +45,7 @@ class HistoricalDemandResponse(BaseModel):
     is_live: Literal[False] = False
     is_actual_occupancy: Literal[False] = False
     reason: str | None = None
+    reason_code: str | None = None
 
 
 @router.get("/historical", response_model=HistoricalDemandResponse)
@@ -63,20 +71,27 @@ def demand_for_time(request, route_id, date, time):
                 applicable_hour_start=at.replace(minute=0).isoformat())
     adapter = request.app.state.historical_demand
     if adapter is None:
-        return HistoricalDemandResponse(status="unavailable", reason="No validated historical export is loaded.", **base)
+        code = request.app.state.demand_issue
+        return HistoricalDemandResponse(status="unavailable", reason_code=code,
+                                        reason=ARTIFACT_REASONS.get(code, "Historical demand is unavailable."),
+                                        **base)
     try:
         result = adapter.lookup(route_id, at)
     except Exception as error:
         logger.warning("Historical lookup rejected request_id=%s type=%s",
                        request.state.request_id, type(error).__name__)
-        return HistoricalDemandResponse(status="unavailable", reason="The historical estimate failed validation.", **base)
+        return HistoricalDemandResponse(status="unavailable", reason_code="lookup_failed", reason="The historical estimate failed validation.", **base)
     if result is None:
-        return HistoricalDemandResponse(status="unsupported_route", reason="This route is outside the verified historical dataset.", **base)
+        return HistoricalDemandResponse(status="unsupported_route", reason_code="route_not_mapped",
+                                        reason="This route and direction are outside the verified historical dataset.", **base)
     available = result["prediction_available"]
+    code = result["route"]
+    direction = next((label for label in ("UP", "DOWN") if code.endswith(label)), None)
     return HistoricalDemandResponse(
         status="historical_estimate" if available else "insufficient_data",
         reason=None if available else "No estimate is available for this weekday and hour.",
-        route=result["route"], estimated_ticketed_passengers=result["predicted_value"],
+        reason_code=None if available else "bucket_missing",
+        route=code, direction=direction, estimated_ticketed_passengers=result["predicted_value"],
         historical_daily_std=result["uncertainty"]["historical_daily_std"],
         historical_calendar_days=result["uncertainty"]["historical_calendar_days"],
         source=result["source"], model=result["model"], schema_version=result["schema_version"],

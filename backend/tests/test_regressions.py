@@ -4,6 +4,7 @@ import json
 import sqlite3
 import zipfile
 from dataclasses import replace
+from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -34,10 +35,12 @@ def make_feed(tmp_path, *, trips=None, times=None, stops=None, calendars=None, d
     return path
 
 
-def client_for(tmp_path, feed):
+def client_for(tmp_path, feed, *, clock=None):
     database = tmp_path / "feed.db"
     report = import_gtfs(feed, database)
-    return TestClient(create_app(Settings(f"sqlite:///{database}", (), "WARNING"))), report
+    if clock is None:
+        clock = lambda: datetime(2026, 11, 22, tzinfo=timezone.utc)
+    return TestClient(create_app(Settings(f"sqlite:///{database}", (), "WARNING"), clock=clock)), report
 
 
 def test_missing_required_column_and_missing_calendar(tmp_path):
@@ -110,6 +113,9 @@ def test_calendar_exception_and_weekend(tmp_path):
         assert client.get("/api/v1/journeys", params={**query, "date": "2026-11-23"}).json() == []
         assert client.get("/api/v1/journeys", params={**query, "date": "2026-11-28"}).json()
         assert client.get("/api/v1/journeys", params={**query, "date": "2026-11-29"}).json() == []
+        week = client.get("/api/v1/analytics").json()["scheduledServiceWeek"]
+        assert week[0] == {"serviceDate": "2026-11-01", "weekend": True, "trips": 0}
+        assert week[1] == {"serviceDate": "2026-11-02", "weekend": False, "trips": 1}
 
 
 def test_loop_geometry_uses_later_stop_occurrence(tmp_path):
@@ -258,6 +264,7 @@ def test_feed_transfer_minimum_and_prohibition(tmp_path):
     assert response.status_code == 200
     journey, = response.json()
     assert journey["transferDuration"] == 10
+    assert journey["transferMinimumSeconds"] == 600
     assert [leg["stopIds"] for leg in journey["legs"]] == [["A", "B"], ["D", "C"]]
 
 
@@ -304,3 +311,70 @@ def test_partial_stop_times_preserve_chronological_validation(tmp_path):
     assert not database.exists()
     failure = json.loads((tmp_path / "import.failed.json").read_text())
     assert failure["consistency"]["out_of_order_stop_times"] == 1
+
+
+def test_equivalent_gtfs_trips_are_removed_before_limiting(tmp_path):
+    trips = ["Z,R,S,SH", "A,R,S,SH", "LATER,R,S,SH"]
+    times = [f"{trip},{start},{start},A,0" for trip, start in
+             [("Z", "08:00:00"), ("A", "08:00:00"), ("LATER", "08:00:01")]]
+    times += [f"{trip},08:10:00,08:10:00,B,1" for trip in ("Z", "A", "LATER")]
+    client, _ = client_for(tmp_path, make_feed(tmp_path, trips=trips, times=times))
+    with client:
+        query = {"origin": "A", "destination": "B", "date": "2026-11-23", "time": "08:00", "limit": 2}
+        result = client.get("/api/v1/journeys", params=query).json()
+        assert [item["legs"][0]["tripId"] for item in result] == ["A", "LATER"]
+        assert len({item["itineraryId"] for item in result}) == 2
+        assert result == client.get("/api/v1/journeys", params=query).json()
+
+
+def test_upcoming_uses_delhi_today_and_exact_seconds(tmp_path):
+    trips = ["OLD,R,S,SH", "NOW,R,S,SH", "NEXT,R,S,SH"]
+    times = []
+    for trip, start in [("OLD", "09:30:00"), ("NOW", "15:14:30"), ("NEXT", "15:14:31")]:
+        times += [f"{trip},{start},{start},A,0", f"{trip},15:20:00,15:20:00,B,1"]
+    feed = make_feed(tmp_path, trips=trips, times=times)
+    now = datetime(2026, 11, 24, 9, 44, 30, 1000, tzinfo=timezone.utc)
+    client, _ = client_for(tmp_path, feed, clock=lambda: now)
+    with client:
+        query = {"origin": "A", "destination": "B", "date": "2026-11-24", "time": "09:30"}
+        today = client.get("/api/v1/journeys", params=query).json()
+        assert [item["legs"][0]["tripId"] for item in today] == ["NEXT"]
+        future = client.get("/api/v1/journeys", params={**query, "date": "2026-11-25"}).json()
+        assert future[0]["departure"] == 570
+        passed = {**query, "date": "2026-11-23"}
+        assert client.get("/api/v1/journeys", params=passed).status_code == 422
+        historical = client.get("/api/v1/journeys", params={**passed, "mode": "historical"})
+        assert historical.json()[0]["departure"] == 570
+
+
+def test_cross_stop_transfer_without_minimum_and_long_wait_are_excluded(tmp_path):
+    feed = make_feed(
+        tmp_path, trips=["FIRST,R,S,", "CROSS,R,S,", "LATE,R,S,"],
+        stops=["A,Alpha,28.60,77.10", "B,Beta,28.61,77.11", "C,Gamma,28.62,77.12", "D,Delta,28.60,77.12"],
+        times=[
+            "FIRST,08:00:00,08:00:00,A,0", "FIRST,08:10:00,08:10:00,B,1",
+            "CROSS,08:20:00,08:20:00,D,0", "CROSS,08:30:00,08:30:00,C,1",
+            "LATE,09:11:00,09:11:00,B,0", "LATE,09:25:00,09:25:00,C,1",
+        ],
+    )
+    with zipfile.ZipFile(feed, "a") as archive:
+        archive.writestr("transfers.txt", "from_stop_id,to_stop_id,transfer_type\nB,D,0\n")
+    client, _ = client_for(tmp_path, feed)
+    with client:
+        response = client.get("/api/v1/journeys?origin=A&destination=C&date=2026-11-24&time=08:00")
+        assert response.status_code == 200
+        assert response.json() == []
+
+
+def test_upcoming_after_delhi_midnight_uses_previous_service_day(tmp_path):
+    trips = ["PAST,R,S,", "NIGHT,R,S,"]
+    times = ["PAST,24:00:00,24:00:00,A,0", "PAST,24:05:00,24:05:00,B,1",
+             "NIGHT,24:10:00,24:10:00,A,0", "NIGHT,24:20:00,24:20:00,B,1"]
+    calendars = ["S,1,0,0,0,0,0,0,20261123,20261123"]
+    feed = make_feed(tmp_path, trips=trips, times=times, calendars=calendars)
+    now = datetime(2026, 11, 23, 18, 35, tzinfo=timezone.utc)
+    client, _ = client_for(tmp_path, feed, clock=lambda: now)
+    with client:
+        response = client.get("/api/v1/journeys?origin=A&destination=B&date=2026-11-24&time=00:00")
+        assert response.status_code == 200
+        assert [journey["legs"][0]["tripId"] for journey in response.json()] == ["NIGHT"]

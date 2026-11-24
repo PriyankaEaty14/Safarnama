@@ -69,6 +69,7 @@ function StopMarker({stop,position,role,journey,serviceDate,now,StopCalls}){
 export default function Explorer({stops,journey,query,selectedStretch,serviceDate,now,Header,Message,Badge,StopInput,StopCalls,StopItinerary}){
   const [geometry,setGeometry]=useState(null);
   const [mapState,setMapState]=useState('');
+  const [tilesUnavailable,setTilesUnavailable]=useState(false);
   useEffect(()=>{
     if(!journey)return;
     const controller=new AbortController();
@@ -95,7 +96,8 @@ export default function Explorer({stops,journey,query,selectedStretch,serviceDat
     {geometry&&legs.some(leg=>leg.points.length<2)&&<Message>Verified shape geometry is unavailable for one or more legs. You can still inspect their stops.</Message>}
     {selectedStretch&&<div className="selected-stretch"><MapPin size={18}/><strong>{stretchName}</strong><Badge level={selectedStretch.level}/>{highlighted.length<2&&<span>Stop coordinates unavailable</span>}</div>}
     {stops.length>0&&<StopMapPicker stops={stops} StopInput={StopInput}/>}
-    <MapContainer center={[28.635,77.25]} zoom={11} className="map" scrollWheelZoom={false} zoomAnimation={false}><TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"/><FitMap points={fit}/>
+    {tilesUnavailable&&<Message>Map background unavailable. Stops and verified route lines are still shown.</Message>}
+    <MapContainer center={[28.635,77.25]} zoom={11} className="map" scrollWheelZoom={false} zoomAnimation={false}><TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" eventHandlers={{tileerror:()=>setTilesUnavailable(true)}}/><FitMap points={fit}/>
     {legs.map((leg,i)=>leg.points.length>1&&<Polyline key={i} positions={leg.points} pathOptions={{color:colors[i%colors.length],weight:6,opacity:.85}}><Tooltip>Bus {leg.route}</Tooltip></Polyline>)}
     {mappedStops.map(stop=>{
       const endpoint=endpoints.indexOf(stop.id);

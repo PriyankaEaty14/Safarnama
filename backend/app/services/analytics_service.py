@@ -1,9 +1,12 @@
 """Aggregate static schedules independently of passenger data."""
 
+from datetime import date, timedelta
 from threading import Lock
 
 from pydantic import BaseModel
 from sqlalchemy import Engine, text
+
+from app.services.journey_service import active_services
 
 
 class Counts(BaseModel):
@@ -21,6 +24,12 @@ class ServiceDates(BaseModel):
 
 class ScheduledHour(BaseModel):
     hour: int
+    trips: int
+
+
+class ScheduledServiceDay(BaseModel):
+    serviceDate: date
+    weekend: bool
     trips: int
 
 
@@ -48,6 +57,7 @@ class AnalyticsResponse(BaseModel):
     serviceDates: ServiceDates
     scheduledDeparturesByHour: list[ScheduledHour]
     corridors: list[Corridor]
+    scheduledServiceWeek: list[ScheduledServiceDay]
     historicalRecords: UnavailableValue = UnavailableValue()
     hourlyDemand: UnavailableSeries = UnavailableSeries()
     routeDemand: UnavailableSeries = UnavailableSeries()
@@ -73,6 +83,18 @@ def summarize(engine: Engine) -> AnalyticsResponse:
                 SELECT date, date FROM calendar_dates WHERE exception_type=1
             ) AS published_dates
         """)).one()
+        week = []
+        if first and last:
+            first_day, last_day = date.fromisoformat(first), date.fromisoformat(last)
+            trips_by_service = dict(db.execute(text(
+                "SELECT service_id, COUNT(*) FROM trips GROUP BY service_id"
+            )).all())
+            for offset in range(min(7, (last_day - first_day).days + 1)):
+                day = first_day + timedelta(days=offset)
+                week.append(ScheduledServiceDay(
+                    serviceDate=day, weekend=day.weekday() >= 5,
+                    trips=sum(trips_by_service.get(service, 0) for service in active_services(db, day)),
+                ))
         hours = dict(db.execute(text("""
             SELECT CAST(first_departure / 3600 AS INTEGER) AS hour, COUNT(*)
             FROM (
@@ -107,6 +129,7 @@ def summarize(engine: Engine) -> AnalyticsResponse:
             ScheduledHour(hour=hour, trips=hours.get(hour, 0))
             for hour in range(max(23, max(hours)) + 1)
         ] if hours else [],
+        scheduledServiceWeek=week,
         corridors=[Corridor(**row) for row in corridors],
     )
 

@@ -32,3 +32,44 @@ network access.
 Use `scripts/run_tests` for Python, the frontend build and Compose validation.
 Set `SAFARNAMA_TEST_ORIGIN` to include health probes and Chromium against a
 server with the supplied feed. [Reproduce deployment and tests](DEPLOYMENT_GUIDE.md)
+
+## End-to-end journey update, 24 November 2026
+
+The source baseline at `d7ca5e1` passed 33 backend tests and 43 ML tests
+before changes. It built successfully. A baseline Chromium run against the
+legacy Compose HTTP endpoint passed six tests and failed two demand tests.
+That endpoint served the older schedule build and lacked the current demand
+routes. The revised end-to-end run used Caddy, the rebuilt frontend and
+updated FastAPI inside an existing Docker container with the actual Delhi
+database mounted read-only.
+
+```sh
+SAFARNAMA_PYTHON=/path/to/venv/bin/python scripts/run_tests
+SAFARNAMA_TEST_ORIGIN=http://127.0.0.1:8967 SAFARNAMA_TEST_CHROMIUM=/usr/bin/chromium npm test
+scripts/validate_data feeds/delhi_buses_static_gtfs_v1.zip --origin http://127.0.0.1:8967
+docker compose config -q
+```
+
+Backend passed 37 tests, Member 1 passed all 43 automated ML tests and its
+CSV comparison utility, and Vite built the frontend. The existing
+Starlette TestClient and React Router warnings were visible in the output.
+GTFS verification checked the import hash, SQLite integrity, calendar
+relationships and actual route coverage. Both liveness and readiness
+returned HTTP 200 through Caddy.
+
+The clean image build remains unverified in this cloud workspace. A previous
+build exhausted disk space and the remaining filesystem capacity was too low
+to repeat it safely. The revised app was verified within the running
+container harness using the existing persistent volume. Windows Docker
+Desktop verification remains pending.
+
+The app recovered readiness after a deliberate FastAPI process restart.
+SQLite retained all 2,737,136 stop-time rows, and the read-only database's
+size and SHA-256 were identical before and after the restart. The
+verification did not restart the user's Docker Desktop installation.
+
+The final Chromium suite passed all 14 tests with zero failures or skips.
+It covered six widths from 360 to 1,440 pixels, the real transfer and
+historical demand flows, and same-day departure filtering. An earlier
+iteration exposed an ambiguous stop selector in the new test. The final
+test selects two actual GTFS stops by their recorded stop codes.

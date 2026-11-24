@@ -47,3 +47,14 @@ contents. Vehicle positions use a separate authorized provider workflow.
 The uploaded October ETM archive exceeded this executor’s 32 MiB transfer
 limit. Its raw observations and the full-network export were not available
 for verification in the checkout.
+
+## Service calendar and transfer review
+
+The active archive contains service ID `1` scheduled for all seven
+weekdays from 2025-01-01 to 2040-01-01. SQLite returned zero unrecognized
+trip service IDs and zero shape coordinates outside latitude/longitude
+bounds. It has no calendar exceptions or explicit transfer rules. The
+planner enforces the selected service date and handles GTFS times beyond
+24:00 against the originating service day. This archive supplies no
+validated walking distance or boarding guarantees.
+[Journey planner validation](JOURNEY_PLANNER_VALIDATION.md)

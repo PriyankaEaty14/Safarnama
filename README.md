@@ -82,3 +82,12 @@ The analytics view shows how many GTFS routes have verified historical demand
 and lets you inspect estimates for each hour of a selected route and date.
 The optional Delhi vehicle feed requires authorized access and is disabled by
 default. [Data and deployment configuration](docs/DEPLOYMENT_GUIDE.md)
+
+The planner shows upcoming departures for the current Delhi date. For a
+past date, explicitly select **Historical timetable lookup**. Transfer
+cards show where to alight, when to board the next bus and the scheduled
+connection time. [Journey planner validation](docs/JOURNEY_PLANNER_VALIDATION.md)
+
+Windows Docker Desktop installations can update the source without
+reimporting GTFS when they keep the same Compose project and volume.
+[Windows update steps](docs/DEPLOYMENT_GUIDE.md#update-an-existing-windows-docker-desktop-installation)
