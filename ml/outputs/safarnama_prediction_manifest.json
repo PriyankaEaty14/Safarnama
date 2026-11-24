@@ -1,0 +1,19 @@
+{
+  "project": "SAFARNAMA",
+  "schema_version": "1.0",
+  "dataset": "demo_route_predictions.csv",
+  "sha256": "a2a8d33e9c75ef983af643cb7f3173284f888bb1897aa3f7bc9d83207472e50e",
+  "prediction_rows": 3360,
+  "routes": 20,
+  "model": "route_weekday_hour_mean",
+  "training_start": "2026-10-01",
+  "training_end": "2026-10-31",
+  "timezone": "Asia/Kolkata",
+  "prediction_scope": "route_hour",
+  "metric": "historical_ticketed_passengers_per_route_hour",
+  "is_live": false,
+  "is_actual_occupancy": false,
+  "segment_prediction_available": false,
+  "coverage_scope": "selected_demo_routes",
+  "confidence_calibrated": false
+}

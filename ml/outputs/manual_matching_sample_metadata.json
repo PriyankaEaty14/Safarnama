@@ -1,0 +1,27 @@
+{
+  "matching_version": "V3",
+  "random_seed": 42,
+  "sampling_unit": "unique_route_stop_mapping",
+  "sampling_design": "stratified_by_matching_method",
+  "sample_size": 45,
+  "strata": [
+    {
+      "matching_method": "component_exact",
+      "population_unique_mappings": 3741,
+      "sample_size": 15
+    },
+    {
+      "matching_method": "exact",
+      "population_unique_mappings": 38972,
+      "sample_size": 15
+    },
+    {
+      "matching_method": "fuzzy",
+      "population_unique_mappings": 3665,
+      "sample_size": 15
+    }
+  ],
+  "manual_review_completed": false,
+  "matching_precision": null,
+  "geographic_accuracy": null
+}

@@ -1,0 +1,115 @@
+{
+  "source": "delhi_buses_static_gtfs_v1.zip",
+  "sha256": "8eb05d9c21e7a6b42d7b49de45cb095b70ddee5b8f7716859330c9784c322f05",
+  "tables": {
+    "agency.txt": {
+      "available": true,
+      "total": 2,
+      "imported": 2,
+      "rejected": 0,
+      "skipped": 0,
+      "duplicates": 0,
+      "missing_values": {
+        "agency_phone": 2,
+        "agency_fare_url": 2,
+        "agency_email": 2
+      },
+      "validation_errors": {}
+    },
+    "stops.txt": {
+      "available": true,
+      "total": 6862,
+      "imported": 6862,
+      "rejected": 0,
+      "skipped": 0,
+      "duplicates": 0,
+      "missing_values": {},
+      "validation_errors": {}
+    },
+    "routes.txt": {
+      "available": true,
+      "total": 2574,
+      "imported": 2574,
+      "rejected": 0,
+      "skipped": 0,
+      "duplicates": 0,
+      "missing_values": {},
+      "validation_errors": {}
+    },
+    "calendar.txt": {
+      "available": true,
+      "total": 1,
+      "imported": 1,
+      "rejected": 0,
+      "skipped": 0,
+      "duplicates": 0,
+      "missing_values": {},
+      "validation_errors": {}
+    },
+    "calendar_dates.txt": {
+      "available": false,
+      "total": 0,
+      "imported": 0,
+      "rejected": 0,
+      "duplicates": 0,
+      "missing_values": {}
+    },
+    "trips.txt": {
+      "available": true,
+      "total": 80357,
+      "imported": 80357,
+      "rejected": 0,
+      "skipped": 0,
+      "duplicates": 0,
+      "missing_values": {
+        "trip_short_name": 80357,
+        "direction_id": 80357,
+        "block_id": 80357
+      },
+      "validation_errors": {}
+    },
+    "stop_times.txt": {
+      "available": true,
+      "total": 2737136,
+      "imported": 2737136,
+      "rejected": 0,
+      "skipped": 0,
+      "duplicates": 0,
+      "missing_values": {
+        "stop_dist": 2737136
+      },
+      "validation_errors": {}
+    },
+    "shapes.txt": {
+      "available": true,
+      "total": 965607,
+      "imported": 965607,
+      "rejected": 0,
+      "skipped": 0,
+      "duplicates": 0,
+      "missing_values": {},
+      "validation_errors": {}
+    },
+    "transfers.txt": {
+      "available": false,
+      "total": 0,
+      "imported": 0,
+      "rejected": 0,
+      "duplicates": 0,
+      "missing_values": {}
+    }
+  },
+  "errors": [],
+  "feed_info": {
+    "available": true,
+    "total": 2,
+    "validated": 2,
+    "rejected": 0,
+    "validation_errors": {}
+  },
+  "consistency": {
+    "out_of_order_stop_times": 0,
+    "trips_without_two_stop_times": 0,
+    "trips_with_missing_shape": 0
+  }
+}

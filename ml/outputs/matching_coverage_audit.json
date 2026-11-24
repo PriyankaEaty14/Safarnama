@@ -1,0 +1,46 @@
+{
+  "denominator": "cleaned_ETM_ticket_records",
+  "results": [
+    {
+      "matching_version": "V2",
+      "total_cleaned_ticket_records": 1317730,
+      "boarding_matched": 932397,
+      "destination_matched": 921585,
+      "boarding_coverage_pct": 70.7578,
+      "destination_coverage_pct": 69.9373,
+      "both_stop_coverage_pct": 55.3409,
+      "records_with_unmatched_stops": 588486,
+      "both_matched_but_invalid_order": 587,
+      "gtfs_ordered_journeys": 728657,
+      "gtfs_ordered_coverage_pct": 55.2964,
+      "categories": {
+        "both_stops_matched": 729244,
+        "boarding_only_matched": 203153,
+        "destination_only_matched": 192341,
+        "neither_stop_matched": 192992
+      },
+      "geographic_accuracy_verified": false
+    },
+    {
+      "matching_version": "V3",
+      "total_cleaned_ticket_records": 1317730,
+      "boarding_matched": 1007160,
+      "destination_matched": 1003630,
+      "boarding_coverage_pct": 76.4314,
+      "destination_coverage_pct": 76.1636,
+      "both_stop_coverage_pct": 62.8224,
+      "records_with_unmatched_stops": 489900,
+      "both_matched_but_invalid_order": 870,
+      "gtfs_ordered_journeys": 826960,
+      "gtfs_ordered_coverage_pct": 62.7564,
+      "categories": {
+        "both_stops_matched": 827830,
+        "boarding_only_matched": 179330,
+        "destination_only_matched": 175800,
+        "neither_stop_matched": 134770
+      },
+      "geographic_accuracy_verified": false
+    }
+  ],
+  "coverage_is_not_accuracy": true
+}

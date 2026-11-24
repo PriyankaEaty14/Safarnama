@@ -1,0 +1,271 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SAFARNAMA Historical Demand Response",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "route",
+    "direction",
+    "boarding_stop_id",
+    "alighting_stop_id",
+    "applicable_datetime",
+    "applicable_hour_start",
+    "timezone",
+    "day_of_week",
+    "hour",
+    "metric",
+    "predicted_value",
+    "unit",
+    "prediction_scope",
+    "source",
+    "training_period",
+    "model",
+    "data_availability",
+    "prediction_available",
+    "stop_context_status",
+    "segment_prediction_available",
+    "uncertainty",
+    "is_live",
+    "is_actual_occupancy",
+    "physical_trip_verified",
+    "actual_occupancy",
+    "occupancy_percentage",
+    "remaining_seats",
+    "crowdedness_category",
+    "display_label",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "route": {
+      "type": "string",
+      "minLength": 1
+    },
+    "direction": {
+      "enum": [
+        "UP",
+        "DOWN",
+        null
+      ]
+    },
+    "boarding_stop_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "alighting_stop_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "applicable_datetime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "applicable_hour_start": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "timezone": {
+      "const": "Asia/Kolkata"
+    },
+    "day_of_week": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 6
+    },
+    "hour": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 23
+    },
+    "metric": {
+      "const": "historical_ticketed_passengers_per_route_hour"
+    },
+    "predicted_value": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "unit": {
+      "const": "ticketed_passengers_per_route_hour"
+    },
+    "prediction_scope": {
+      "const": "route_hour"
+    },
+    "source": {
+      "const": "October_2026_ETM_historical_baseline"
+    },
+    "training_period": {
+      "type": "object",
+      "required": [
+        "start",
+        "end"
+      ],
+      "properties": {
+        "start": {
+          "const": "2026-10-01"
+        },
+        "end": {
+          "const": "2026-10-31"
+        }
+      },
+      "additionalProperties": false
+    },
+    "model": {
+      "const": "route_weekday_hour_mean"
+    },
+    "data_availability": {
+      "enum": [
+        "available",
+        "route_not_in_prediction_dataset",
+        "prediction_not_available"
+      ]
+    },
+    "prediction_available": {
+      "type": "boolean"
+    },
+    "stop_context_status": {
+      "enum": [
+        "not_requested",
+        "provided_not_validated"
+      ]
+    },
+    "segment_prediction_available": {
+      "const": false
+    },
+    "uncertainty": {
+      "type": "object",
+      "required": [
+        "status",
+        "confidence_score",
+        "lower_bound",
+        "upper_bound",
+        "historical_daily_std",
+        "historical_calendar_days",
+        "historical_days_note",
+        "note"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "not_calibrated",
+            "prediction_unavailable"
+          ]
+        },
+        "confidence_score": {
+          "type": "null"
+        },
+        "lower_bound": {
+          "type": "null"
+        },
+        "upper_bound": {
+          "type": "null"
+        },
+        "historical_daily_std": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "historical_calendar_days": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "historical_days_note": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "is_live": {
+      "const": false
+    },
+    "is_actual_occupancy": {
+      "const": false
+    },
+    "physical_trip_verified": {
+      "const": false
+    },
+    "actual_occupancy": {
+      "type": "null"
+    },
+    "occupancy_percentage": {
+      "type": "null"
+    },
+    "remaining_seats": {
+      "type": "null"
+    },
+    "crowdedness_category": {
+      "type": "null"
+    },
+    "display_label": {
+      "type": "string"
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "if": {
+    "properties": {
+      "prediction_available": {
+        "const": true
+      }
+    }
+  },
+  "then": {
+    "properties": {
+      "predicted_value": {
+        "type": "number",
+        "minimum": 0
+      },
+      "data_availability": {
+        "const": "available"
+      },
+      "uncertainty": {
+        "properties": {
+          "status": {
+            "const": "not_calibrated"
+          }
+        }
+      }
+    }
+  },
+  "else": {
+    "properties": {
+      "predicted_value": {
+        "type": "null"
+      },
+      "data_availability": {
+        "enum": [
+          "route_not_in_prediction_dataset",
+          "prediction_not_available"
+        ]
+      },
+      "uncertainty": {
+        "properties": {
+          "status": {
+            "const": "prediction_unavailable"
+          }
+        }
+      }
+    }
+  }
+}

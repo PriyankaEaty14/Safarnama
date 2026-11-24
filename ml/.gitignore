@@ -1,0 +1,62 @@
+
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Raw and processed datasets
+data/raw/
+data/processed/
+
+# Trained models
+models/
+
+# Training logs
+catboost_info/
+
+# Large intermediate outputs
+outputs/daily_hourly_demand*.csv
+outputs/hourly_demand_baseline*.csv
+outputs/hourly_demand_validation.csv
+outputs/catboost_validation.csv
+outputs/hourly_demand_v2_evaluation.csv
+outputs/hybrid_demand_evaluation.csv
+outputs/candidate_run_summary.csv
+outputs/stop_matching_report_v2.csv
+outputs/stop_matching_report_v3.csv
+outputs/v3_recovered_journeys.csv
+outputs/hourly_demand_predictions.json
+
+# Local archives
+*.zip
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Local vehicle-level and ticket-level research outputs
+outputs/sample_bus_run.csv
+outputs/sample_occupancy_chart.png
+outputs/sample_occupancy_profile.csv
+outputs/sample_occupancy_summary*.json
+outputs/occupancy_validation_summary*.json
+outputs/audited_candidate_occupancy_profile.csv
+outputs/audited_candidate_run_report.json
+outputs/multi_run_occupancy_profiles_v2.csv
+outputs/multi_run_occupancy_summary_v2.json
+
+# Detailed matching review outputs retained locally
+outputs/manual_matching_review_template.csv
+outputs/manual_matching_review_completed.csv
+outputs/suspected_stop_mapping_errors.csv
+outputs/unmatched_endpoints_audit_v3.csv
+outputs/v3_manual_review_sample.csv

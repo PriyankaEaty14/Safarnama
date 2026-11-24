@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0",
+  "matching_version": "V3",
+  "sampling_unit": "unique_route_stop_mapping",
+  "sampling_design": "stratified_by_matching_method",
+  "random_seed": 42,
+  "review_type": "AI-assisted manual name comparison",
+  "name_review_completed": true,
+  "total_samples_reviewed": 45,
+  "name_consistent": 42,
+  "name_conflicts": 3,
+  "sample_name_consistency_pct": 93.3333,
+  "suspected_conflict_endpoint_occurrences": 692,
+  "geographically_verified_correct": 0,
+  "geographically_verified_incorrect": 0,
+  "geographically_unverified": 45,
+  "geographic_matching_precision": null,
+  "population_matching_accuracy": null,
+  "independent_geographic_validation_completed": false,
+  "method_results": [
+    {
+      "matching_method": "component_exact",
+      "reviewed": 15,
+      "name_consistent": 15,
+      "name_conflicts": 0,
+      "name_consistency_pct": 100.0,
+      "geographic_precision": null
+    },
+    {
+      "matching_method": "exact",
+      "reviewed": 15,
+      "name_consistent": 15,
+      "name_conflicts": 0,
+      "name_consistency_pct": 100.0,
+      "geographic_precision": null
+    },
+    {
+      "matching_method": "fuzzy",
+      "reviewed": 15,
+      "name_consistent": 12,
+      "name_conflicts": 3,
+      "name_consistency_pct": 80.0,
+      "geographic_precision": null
+    }
+  ],
+  "limitations": [
+    "Name consistency does not establish physical stop identity.",
+    "GTFS coordinates are not independent ETM ground truth.",
+    "The sample is stratified and not self-weighting.",
+    "The overall sample rate is not population accuracy.",
+    "Flagged mappings are suspected errors, not independently verified errors.",
+    "Endpoint occurrences are not necessarily distinct tickets."
+  ],
+  "recommended_actions": [
+    "Investigate flagged mappings before assigning replacement stop IDs.",
+    "Protect East, West, North and South qualifiers.",
+    "Protect block, sector and phase identifiers.",
+    "Reject uncertain mappings rather than force a match.",
+    "Obtain independent ETM stop reference information."
+  ]
+}

@@ -1,0 +1,45 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      SAFARNAMA_DATABASE_URL: sqlite:////data/safarnama.db
+      SAFARNAMA_CORS_ORIGINS: ${SAFARNAMA_CORS_ORIGINS:-}
+      SAFARNAMA_LOG_LEVEL: ${SAFARNAMA_LOG_LEVEL:-INFO}
+      SAFARNAMA_ML_ARTIFACT_DIR: ${SAFARNAMA_ML_ARTIFACT_DIR-/app/ml/outputs}
+    volumes:
+      - transit:/data
+      - ./feeds:/feeds:ro
+    init: true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/api/v1/ready', timeout=3).close()"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 10s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    environment:
+      SAFARNAMA_SITE_ADDRESS: ${SAFARNAMA_SITE_ADDRESS:-:80}
+      NO_PROXY: backend,localhost,127.0.0.1
+      no_proxy: backend,localhost,127.0.0.1
+    ports:
+      - "${SAFARNAMA_HTTP_BIND:-127.0.0.1:8080}:80"
+      - "${SAFARNAMA_HTTPS_BIND:-127.0.0.1:8443}:443"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  transit:
+  caddy-data:
+  caddy-config:

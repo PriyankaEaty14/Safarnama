@@ -1,0 +1,13 @@
+.git
+.env
+.env.local
+node_modules
+dist
+feeds
+test-results
+playwright-report
+backend/.env
+backend/.venv
+backend/data
+**/__pycache__
+**/.pytest_cache

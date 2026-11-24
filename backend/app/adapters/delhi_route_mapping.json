@@ -1,0 +1,105 @@
+{
+  "gtfs_feed_sha256": "8eb05d9c21e7a6b42d7b49de45cb095b70ddee5b8f7716859330c9784c322f05",
+  "routes": [
+    {
+      "gtfs_route_id": "1931",
+      "etm_route_code": "433DOWN",
+      "agency_id": "DTC"
+    },
+    {
+      "gtfs_route_id": "2007",
+      "etm_route_code": "511ADOWN",
+      "agency_id": "DTC"
+    },
+    {
+      "gtfs_route_id": "2008",
+      "etm_route_code": "511AUP",
+      "agency_id": "DTC"
+    },
+    {
+      "gtfs_route_id": "2031",
+      "etm_route_code": "522DOWN",
+      "agency_id": "DTC"
+    },
+    {
+      "gtfs_route_id": "2034",
+      "etm_route_code": "522UP",
+      "agency_id": "DTC"
+    },
+    {
+      "gtfs_route_id": "2038",
+      "etm_route_code": "525STLDOWN",
+      "agency_id": "DTC"
+    },
+    {
+      "gtfs_route_id": "2039",
+      "etm_route_code": "525STLUP",
+      "agency_id": "DTC"
+    },
+    {
+      "gtfs_route_id": "568",
+      "etm_route_code": "539UP",
+      "agency_id": "DIMTS"
+    },
+    {
+      "gtfs_route_id": "2073",
+      "etm_route_code": "544DOWN",
+      "agency_id": "DTC"
+    },
+    {
+      "gtfs_route_id": "2097",
+      "etm_route_code": "578DOWN",
+      "agency_id": "DTC"
+    },
+    {
+      "gtfs_route_id": "2098",
+      "etm_route_code": "578UP",
+      "agency_id": "DTC"
+    },
+    {
+      "gtfs_route_id": "2170",
+      "etm_route_code": "717ADOWN",
+      "agency_id": "DTC"
+    },
+    {
+      "gtfs_route_id": "2171",
+      "etm_route_code": "717AUP",
+      "agency_id": "DTC"
+    },
+    {
+      "gtfs_route_id": "2172",
+      "etm_route_code": "717BDOWN",
+      "agency_id": "DTC"
+    },
+    {
+      "gtfs_route_id": "2173",
+      "etm_route_code": "717BUP",
+      "agency_id": "DTC"
+    },
+    {
+      "gtfs_route_id": "2203",
+      "etm_route_code": "729DOWN",
+      "agency_id": "DTC"
+    },
+    {
+      "gtfs_route_id": "2204",
+      "etm_route_code": "729UP",
+      "agency_id": "DTC"
+    },
+    {
+      "gtfs_route_id": "2229",
+      "etm_route_code": "764DOWN",
+      "agency_id": "DTC"
+    },
+    {
+      "gtfs_route_id": "2232",
+      "etm_route_code": "764UP",
+      "agency_id": "DTC"
+    },
+    {
+      "gtfs_route_id": "784",
+      "etm_route_code": "774DOWN",
+      "agency_id": "DIMTS"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "total_tickets": 1317730,
+  "valid_order_tickets": 728657,
+  "not_validated_tickets": 589073,
+  "valid_percentage": 55.3,
+  "categories": [
+    {
+      "category": "valid_order",
+      "tickets": 728657,
+      "percentage": 55.3
+    },
+    {
+      "category": "both_stops_unmatched",
+      "tickets": 192992,
+      "percentage": 14.65
+    },
+    {
+      "category": "boarding_unmatched",
+      "tickets": 192341,
+      "percentage": 14.6
+    },
+    {
+      "category": "destination_unmatched",
+      "tickets": 203153,
+      "percentage": 15.42
+    },
+    {
+      "category": "same_stop",
+      "tickets": 167,
+      "percentage": 0.01
+    },
+    {
+      "category": "invalid_order_or_pattern",
+      "tickets": 420,
+      "percentage": 0.03
+    }
+  ],
+  "note": "Failure categories describe matching and GTFS validation outcomes, not necessarily bad tickets."
+}

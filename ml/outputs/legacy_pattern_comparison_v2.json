@@ -1,0 +1,11 @@
+{
+  "legacy_trip_a": "2171_FULL_19_01",
+  "legacy_trip_b": "2171_FULL_04_40",
+  "comparison_available": true,
+  "identical_ordered_stop_sequences": true,
+  "trip_a_pattern_id": "99b7812477e21dbe10ffdbc5f283b0dd5ebc779ee6445bf7adac197623d490eb",
+  "trip_b_pattern_id": "99b7812477e21dbe10ffdbc5f283b0dd5ebc779ee6445bf7adac197623d490eb",
+  "trip_a_stop_count": 52,
+  "trip_b_stop_count": 52,
+  "physical_trip_verified": false
+}
